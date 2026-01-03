@@ -14,6 +14,8 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+// import { useQuizStore } from '../API/store/useQuizStore';
+import useQuizStore from '../store/useQuizStore';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
 import Icon2 from 'react-native-vector-icons/AntDesign';
@@ -72,8 +74,6 @@ const Fornixqbank2 = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isPrevPressed, setIsPrevPressed] = useState(false);
-  const [isNextPressed, setIsNextPressed] = useState(false);
-  const [isAudioPressed, setIsAudioPressed] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -89,6 +89,8 @@ const Fornixqbank2 = () => {
   const [attempted, setAttemptId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const submitProgress = useRef(new Animated.Value(0)).current;
+  const saveAnswer = useQuizStore((state) => state.saveAnswer);
+  const getAnswer = useQuizStore((state) => state.getAnswer);
   // const route = useRoute()
 
   console.log("USER ID ", userId)
@@ -173,7 +175,7 @@ const Fornixqbank2 = () => {
       setLoading(true);
       const body = {
         user_id: userId,
-        chapter_id:chapterId,
+        chapter_id: chapterId,
         limit: 20,
       };
       const response = await axios.post(
@@ -323,14 +325,13 @@ const Fornixqbank2 = () => {
   };
 
   const buildSubmitPayload = () => {
+    const {answers} = useQuizStore.getState();
+    console.log("ANSWER",answers)
     return {
       user_id: userId,
       attempt_id: attempted,
       time_taken_seconds: getTimeTakenInSeconds(),
-      answers: userAnswers.map(ans => ({
-        question_id: ans.questionId,
-        selected_key: ans.selected,
-      })),
+      answers:answers,
     };
   };
 
@@ -385,21 +386,27 @@ const Fornixqbank2 = () => {
     navigation.goBack();
   };
 
+ 
   const handleNext = () => {
     if (!hasAnsweredCurrent.current) {
       Alert.alert('Answer Required', 'Please select an answer');
       return;
     }
 
+    const currentQuestion = questions[currentIndex];
+
+    // 🔹 SAVE CURRENT ANSWER
+    saveAnswer(currentQuestion.id, selectedOption);
+
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1;
       const nextQuestion = questions[nextIndex];
-      const savedAnswer = getSavedAnswer(nextQuestion.id);
+      const savedAnswer = getAnswer(nextQuestion.id);
 
       setCurrentIndex(nextIndex);
 
       if (savedAnswer) {
-        setSelectedOption(savedAnswer.selected);
+        setSelectedOption(savedAnswer.selected_key);
         setShowExplanation(true);
         hasAnsweredCurrent.current = true;
       } else {
@@ -658,8 +665,9 @@ const Fornixqbank2 = () => {
 
         {/* 🔹 Question Container */}
         <View style={styles.questionContainer}>
-          <Text style={{textAlign:'center', fontSize:20,
-            fontWeight:'700',
+          <Text style={{
+            textAlign: 'center', fontSize: 20,
+            fontWeight: '700',
           }}>
             {currentQuestion?.question_type}
           </Text>
