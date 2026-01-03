@@ -1,0 +1,706 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  StatusBar,
+  Image,
+  Modal,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import LinearGradient from 'react-native-linear-gradient';
+
+// Screen width and height
+const { width, height } = Dimensions.get('window');
+
+// 🔹 Scale functions matching your Home screen
+const scale = size => (width / 375) * size;
+const verticalScale = size => (height / 812) * size;
+const moderateScale = (size, factor = 0.5) =>
+  size + (scale(size) - size) * factor;
+
+// 🔹 Responsive size function
+const getResponsiveSize = (size) => {
+  if (width < 375) return size * 0.85;
+  if (width > 414) return size * 1.15;
+  return size;
+};
+
+const Results = ({ route, navigation }) => {
+  const insets = useSafeAreaInsets();
+  const [showGift, setShowGift] = useState(true);
+  const [giftAnimation] = useState(new Animated.Value(0));
+  const [scaleAnimation] = useState(new Animated.Value(0.3));
+
+
+
+  useEffect(() => {
+    console.log('RESULT DATA:', route.params);
+  }, []);
+
+
+
+  const rawResult = route.params?.resultData || {};
+
+  const timeTaken = Number(route.params?.timeTaken) || 0;
+
+  const totalQuestions =
+    Number(rawResult.total_questions ?? rawResult.total) || 0;
+
+  const correctAnswers =
+    Number(rawResult.correct_answers ?? rawResult.correct) || 0;
+
+  const score =
+    Number(rawResult.score ?? correctAnswers) || 0;
+
+  const percentage =
+    totalQuestions > 0
+      ? Math.round((correctAnswers / totalQuestions) * 100)
+      : 0;
+
+  const minutes = Math.floor(timeTaken / 60);
+  const seconds = timeTaken % 60;
+
+
+  const quizData = {
+    score,
+    percentage,
+    totalQuestions,
+    correctAnswers,
+    rank: rawResult.rank || '-',
+    totalTime: `${minutes}m ${seconds}s`,
+    avgTimePerQuestion:
+      totalQuestions > 0 ? (timeTaken / totalQuestions).toFixed(1) : 0,
+    category: 'medical',
+  };
+
+
+  useEffect(() => {
+    // Show gift popup after 1 second
+    const timer = setTimeout(() => {
+      setShowGift(true);
+      startGiftAnimation();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const startGiftAnimation = () => {
+    Animated.parallel([
+      Animated.spring(giftAnimation, {
+        toValue: 1,
+        tension: 10,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnimation, {
+        toValue: 1,
+        tension: 10,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeGift = () => {
+    Animated.parallel([
+      Animated.timing(giftAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnimation, {
+        toValue: 0.3,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowGift(false));
+  };
+
+  const renderScoreCircle = () => {
+    const circleSize = width * 0.5;
+
+    return (
+      <View style={styles.scoreCircleContainer}>
+        <LinearGradient
+          colors={['#F87F16', '#FFA726']}
+          style={[
+            styles.scoreCircle,
+            {
+              width: circleSize,
+              height: circleSize,
+              borderRadius: circleSize / 2,
+            }
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={[styles.innerCircle, {
+            width: circleSize * 0.85,
+            height: circleSize * 0.85,
+            borderRadius: (circleSize * 0.85) / 2,
+          }]}>
+            <Text style={[
+              styles.scorePercentage,
+              { fontSize: moderateScale(getResponsiveSize(48)) }
+            ]}>
+              {quizData.percentage}%
+            </Text>
+            <Text style={[
+              styles.scoreLabel,
+              { fontSize: moderateScale(getResponsiveSize(18)) }
+            ]}>
+              Score
+            </Text>
+            <View style={[
+              styles.categoryBadge,
+              {
+                paddingHorizontal: scale(getResponsiveSize(15)),
+                paddingVertical: verticalScale(getResponsiveSize(6)),
+              }
+            ]}>
+              <Text style={[
+                styles.categoryText,
+                { fontSize: moderateScale(getResponsiveSize(14)) }
+              ]}>
+                {quizData.category}!
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  };
+
+  const renderStatsRow = () => (
+    <View style={[
+      styles.statsContainer,
+      {
+        paddingHorizontal: scale(getResponsiveSize(20)),
+        paddingVertical: verticalScale(getResponsiveSize(25)),
+        borderRadius: moderateScale(getResponsiveSize(16)),
+        marginTop: verticalScale(getResponsiveSize(30)),
+      }
+    ]}>
+      {/* Rank Correct */}
+      <View style={styles.statItem}>
+        <Text style={[
+          styles.statNumber,
+          { fontSize: moderateScale(getResponsiveSize(32)) }
+        ]}>
+          {quizData.rank}
+        </Text>
+        <Text style={[
+          styles.statLabel,
+          { fontSize: moderateScale(getResponsiveSize(14)) }
+        ]}>
+          Rank Correct
+        </Text>
+      </View>
+
+      {/* Vertical Divider */}
+      <View style={[
+        styles.divider,
+        { height: verticalScale(getResponsiveSize(50)) }
+      ]} />
+
+      {/* Questions Correct */}
+      <View style={styles.statItem}>
+        <Text style={[
+          styles.statNumber,
+          { fontSize: moderateScale(getResponsiveSize(32)) }
+        ]}>
+          {quizData.correctAnswers}
+        </Text>
+        <Text style={[
+          styles.statLabel,
+          { fontSize: moderateScale(getResponsiveSize(14)) }
+        ]}>
+          Questions{'\n'}Correct
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderTimeInfo = () => (
+    <View style={[
+      styles.timeContainer,
+      {
+        padding: scale(getResponsiveSize(20)),
+        borderRadius: moderateScale(getResponsiveSize(12)),
+        marginTop: verticalScale(getResponsiveSize(25)),
+      }
+    ]}>
+      <View style={styles.timeRow}>
+        <Text style={[
+          styles.timeLabel,
+          { fontSize: moderateScale(getResponsiveSize(16)) }
+        ]}>
+          Total Time:
+        </Text>
+        <Text style={[
+          styles.timeValue,
+          { fontSize: moderateScale(getResponsiveSize(16)) }
+        ]}>
+          {quizData.totalTime}
+        </Text>
+      </View>
+
+      <View style={[
+        styles.timeRow,
+        { marginTop: verticalScale(getResponsiveSize(12)) }
+      ]}>
+        <Text style={[
+          styles.timeLabel,
+          { fontSize: moderateScale(getResponsiveSize(16)) }
+        ]}>
+          Avg. minute per:
+        </Text>
+        <Text style={[
+          styles.timeValue,
+          { fontSize: moderateScale(getResponsiveSize(16)) }
+        ]}>
+          {quizData.avgTimePerQuestion}
+        </Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar  barStyle='dark-content' />
+
+      {/* Header with Back Button */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon
+            name="arrow-left"
+            size={moderateScale(getResponsiveSize(20))}
+            color="white"
+          />
+        </TouchableOpacity>
+        <Text style={[
+          styles.headerTitle,
+          { fontSize: moderateScale(getResponsiveSize(20)) }
+        ]}>
+          Quiz Results
+        </Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Congratulations Text */}
+        <View style={[
+          styles.congratsContainer,
+          { marginTop: verticalScale(getResponsiveSize(20)) }
+        ]}>
+          <Text style={[
+            styles.congratsText,
+            { fontSize: moderateScale(getResponsiveSize(24)) }
+          ]}>
+            Great Job!
+          </Text>
+          <Text style={[
+            styles.subCongratsText,
+            { fontSize: moderateScale(getResponsiveSize(16)) }
+          ]}>
+            You scored {quizData.score} out of {quizData.totalQuestions}
+          </Text>
+        </View>
+
+        {/* Score Circle */}
+        {renderScoreCircle()}
+
+        {/* Stats Row */}
+        {renderStatsRow()}
+
+        {/* Time Info */}
+        {renderTimeInfo()}
+
+        {/* Check Attempted Quiz Button */}
+        <TouchableOpacity
+          style={[
+            styles.button,
+            {
+              paddingVertical: verticalScale(getResponsiveSize(16)),
+              borderRadius: moderateScale(getResponsiveSize(25)),
+              marginTop: verticalScale(getResponsiveSize(30)),
+            }
+          ]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('CheckAttempted')}
+        >
+          <Text style={[
+            styles.buttonText,
+            { fontSize: moderateScale(getResponsiveSize(16)) }
+          ]}>
+            Check Attempted Quiz
+          </Text>
+          <Icon
+            name="arrow-right"
+            size={moderateScale(getResponsiveSize(16))}
+            color="white"
+            style={styles.buttonIcon}
+          />
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Gift Popup Modal */}
+      <Modal
+        visible={showGift}
+        transparent
+        animationType="fade"
+        onRequestClose={closeGift}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View style={[
+            styles.giftContainer,
+            {
+              opacity: giftAnimation,
+              transform: [
+                { scale: scaleAnimation },
+                {
+                  translateY: giftAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [50, 0]
+                  })
+                }
+              ]
+            }
+          ]}>
+            <View style={styles.giftContent}>
+              {/* Gift Box Image */}
+              <View style={styles.giftBoxContainer}>
+                {/* <Image
+                  source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2583/2583434.png' }}
+                  style={styles.giftImage}
+                  resizeMode="contain"
+                /> */}
+                {/* Confetti Animation */}
+                <View style={styles.confettiContainer}>
+                  {[...Array(8)].map((_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.confetti,
+                        {
+                          backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#95E1D3', '#F7CAC9'][i % 5],
+                          left: `${(i * 12) % 100}%`,
+                          top: i % 2 === 0 ? 10 : 60,
+                          transform: [{ rotate: `${i * 45}deg` }],
+                        }
+                      ]}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <Text style={[
+                styles.giftTitle,
+                { fontSize: moderateScale(getResponsiveSize(22)) }
+              ]}>
+                🎉 Congratulations! 🎉
+              </Text>
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={closeGift}
+              >
+                <Text style={[
+                  styles.skipButtonText,
+                  { fontSize: moderateScale(getResponsiveSize(14)) }
+                ]}>
+                  Skip for now
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingBottom: verticalScale(getResponsiveSize(40)),
+    paddingHorizontal: scale(getResponsiveSize(20)),
+  },
+  header: {
+    backgroundColor: '#F87F16',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scale(getResponsiveSize(20)),
+    paddingVertical: verticalScale(getResponsiveSize(15)),
+  },
+  backButton: {
+    width: moderateScale(getResponsiveSize(40)),
+    height: moderateScale(getResponsiveSize(40)),
+    borderRadius: moderateScale(getResponsiveSize(20)),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    includeFontPadding: false,
+  },
+  headerRight: {
+    width: moderateScale(getResponsiveSize(40)),
+  },
+  congratsContainer: {
+    alignItems: 'center',
+    marginBottom: verticalScale(getResponsiveSize(10)),
+  },
+  congratsText: {
+    fontFamily: 'Poppins-Bold',
+    color: '#1A3848',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  subCongratsText: {
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+    textAlign: 'center',
+    marginTop: verticalScale(getResponsiveSize(5)),
+    includeFontPadding: false,
+  },
+  scoreCircleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: verticalScale(getResponsiveSize(10)),
+  },
+  scoreCircle: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  innerCircle: {
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  scorePercentage: {
+    fontFamily: 'Poppins-Bold',
+    color: '#1A3848',
+    includeFontPadding: false,
+  },
+  scoreLabel: {
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+    marginTop: verticalScale(getResponsiveSize(4)),
+    includeFontPadding: false,
+  },
+  categoryBadge: {
+    backgroundColor: '#1A3848',
+    borderRadius: 20,
+    marginTop: verticalScale(getResponsiveSize(10)),
+  },
+  categoryText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    includeFontPadding: false,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    width: '100%',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontFamily: 'Poppins-Bold',
+    color: '#F87F16',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  statLabel: {
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+    textAlign: 'center',
+    marginTop: verticalScale(getResponsiveSize(4)),
+    includeFontPadding: false,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: '#DEE2E6',
+  },
+  timeContainer: {
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    width: '100%',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeLabel: {
+    fontFamily: 'Poppins-Medium',
+    color: '#495057',
+    includeFontPadding: false,
+  },
+  timeValue: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1A3848',
+    includeFontPadding: false,
+  },
+  button: {
+    backgroundColor: '#F87F16',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: scale(getResponsiveSize(40)),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    includeFontPadding: false,
+  },
+  buttonIcon: {
+    marginLeft: scale(getResponsiveSize(10)),
+  },
+  // Gift Popup Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(getResponsiveSize(20)),
+  },
+  giftContainer: {
+    backgroundColor: 'white',
+    borderRadius: moderateScale(getResponsiveSize(20)),
+    width: '100%',
+    maxWidth: 400,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  giftContent: {
+    padding: scale(getResponsiveSize(25)),
+    alignItems: 'center',
+  },
+  giftBoxContainer: {
+    position: 'relative',
+    width: moderateScale(getResponsiveSize(120)),
+    height: moderateScale(getResponsiveSize(120)),
+    marginBottom: verticalScale(getResponsiveSize(20)),
+  },
+  giftImage: {
+    width: '100%',
+    height: '100%',
+  },
+  confettiContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  confetti: {
+    position: 'absolute',
+    width: moderateScale(getResponsiveSize(15)),
+    height: moderateScale(getResponsiveSize(15)),
+    borderRadius: moderateScale(getResponsiveSize(2)),
+  },
+  giftTitle: {
+    fontFamily: 'Poppins-Bold',
+    color: '#1A3848',
+    textAlign: 'center',
+    marginBottom: verticalScale(getResponsiveSize(10)),
+    includeFontPadding: false,
+  },
+  giftMessage: {
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: verticalScale(getResponsiveSize(20)),
+    lineHeight: moderateScale(getResponsiveSize(24)),
+    includeFontPadding: false,
+  },
+  giftRewardContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: verticalScale(getResponsiveSize(25)),
+    gap: scale(getResponsiveSize(20)),
+  },
+  rewardBadge: {
+    alignItems: 'center',
+    backgroundColor: '#FFF9F2',
+    padding: scale(getResponsiveSize(15)),
+    borderRadius: moderateScale(getResponsiveSize(12)),
+    minWidth: scale(getResponsiveSize(100)),
+  },
+  rewardText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1A3848',
+    marginTop: verticalScale(getResponsiveSize(5)),
+    includeFontPadding: false,
+  },
+  claimButton: {
+    backgroundColor: '#F87F16',
+    paddingHorizontal: scale(getResponsiveSize(30)),
+    width: '100%',
+    marginBottom: verticalScale(getResponsiveSize(15)),
+  },
+  claimButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  skipButton: {
+    padding: scale(getResponsiveSize(10)),
+  },
+  skipButtonText: {
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+    includeFontPadding: false,
+  },
+});
+
+export default Results;
