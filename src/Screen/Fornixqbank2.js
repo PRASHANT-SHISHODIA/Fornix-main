@@ -780,29 +780,6 @@ const Fornixqbank2 = () => {
                 </Text>
 
               </View>
-
-              {/* 🔹 Audio Explanation Button */}
-              {/* <TouchableOpacity
-                style={[
-                  styles.audioButton,
-                  isAudioPressed && styles.audioButtonPressed,
-                  isSpeaking && styles.audioButtonSpeaking,
-                ]}
-                onPress={handleAudioExplanation}
-                onPressIn={() => setIsAudioPressed(true)}
-                onPressOut={() => setIsAudioPressed(false)}>
-                <View style={styles.audioContent}>
-                  <Icon2
-                    name={isSpeaking ? 'pausecircle' : 'sound'}
-                    size={moderateScale(getResponsiveSize(20))}
-                    color="#FFFFFF"
-                    style={styles.audioIcon}
-                  />
-                  <Text style={styles.audioText}>
-                    {isSpeaking ? 'Stop Audio' : 'Audio Explanation'}
-                  </Text>
-                </View>
-              </TouchableOpacity> */}
             </View>
           )}
 

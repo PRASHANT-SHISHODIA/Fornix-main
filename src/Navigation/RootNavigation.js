@@ -25,6 +25,7 @@ import Successful from '../Screen/Successful';
 import Results from '../Screen/Results';
 import History from '../Screen/History'
 import CheckAttempted from '../Screen/CheckAttempted';
+import CourseChoose from '../Screen/CourseChoose';
 
 
 
@@ -152,6 +153,11 @@ function RootNavigation() {
         <Stack.Screen 
         name='CheckAttempted'
         component={CheckAttempted}
+        options={{headerShown:false}}
+        />
+         <Stack.Screen 
+        name='CourseChoose'
+        component={CourseChoose}
         options={{headerShown:false}}
         />
       </Stack.Navigator>

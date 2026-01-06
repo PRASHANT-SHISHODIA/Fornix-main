@@ -109,7 +109,7 @@ const Review = ({ route }) => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar backgroundColor="#F87F16" barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header Section */}
       <LinearGradient
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginTop: verticalScale(40),
     transform: [{ scaleX: 0.8 }],
   },
@@ -331,6 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft :30,
   },
   headerTextContainer: {
     flex: 1,
@@ -359,6 +360,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight:30,
   },
   orderCard: {
     backgroundColor: 'white',

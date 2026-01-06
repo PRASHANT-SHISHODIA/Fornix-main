@@ -1,4 +1,4 @@
-import React, {useRef, useEffect} from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon1 from 'react-native-vector-icons/Ionicons';
-import {useNavigation} from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import Selected from './Selected';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Screen width and height
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // 🔹 Scale function to adjust UI for all screen sizes
 const scale = size => (width / 375) * size;
@@ -51,6 +53,24 @@ const getSearchTransform = () => {
 const BasicPlan = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  // const selectedCourse = Selected.course;
+  // const route = useRoute();
+  // const selectedCourse = route?.params?.selectedCourse;
+  const [selectedCourse, setSelectedCourse] = useState(null);
+
+  useEffect(() => {
+    const loadCourse = async () => {
+      const courseData = await AsyncStorage.getItem('selectedCourse')
+      if (courseData) {
+        const parsed = JSON.parse(courseData);
+        setSelectedCourse(parsed.name);
+      }
+
+
+    };
+    loadCourse();
+
+  }, []);
 
   const features = [
     {
@@ -60,13 +80,23 @@ const BasicPlan = () => {
       description: 'Access question bank',
       onPress: () => navigation.navigate('Qbanksubject'),
     },
-    {
-      id: '2',
-      title: 'PYQs',
-      icon: 'file-alt',
-      description: 'Previous year questions',
-      onPress: () => navigation.navigate('PYQs'),
-    },
+    selectedCourse === 'AMC'
+      ? {
+        id: '2',
+        title: 'PYQT',
+        icon: 'file-alt',
+        description: 'Previous year questions',
+        onPress: () => navigation.navigate('PYQs'),
+      }
+      : {
+
+        id: '2',
+        title: 'PYQs',
+        icon: 'file-alt',
+        description: 'Previous year questions',
+        onPress: () => navigation.navigate('PYQs'),
+      },
+
     {
       id: '3',
       title: 'Mock Test',
@@ -80,6 +110,13 @@ const BasicPlan = () => {
       icon: 'chart-bar',
       description: 'Performance analysis',
       onPress: () => navigation.navigate('Analysis'),
+    },
+    {
+      id: '5',
+      title: 'Notes',
+      icon: 'Notes',
+      description: 'Performance analysis',
+      onPress: () => navigation.navigate('Notes'),
     },
   ];
 
@@ -109,7 +146,7 @@ const BasicPlan = () => {
   });
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top}]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
       <ScrollView
@@ -160,7 +197,7 @@ const BasicPlan = () => {
 
         {/* Upgrade Banner */}
         <View style={styles.upgradeContent}>
-          <Animated.View style={[styles.upgradeButton, {backgroundColor}]}>
+          <Animated.View style={[styles.upgradeButton, { backgroundColor }]}>
             <TouchableOpacity
               onPress={() => navigation.navigate('PremiumPlan')}
               activeOpacity={0.8}>
@@ -199,12 +236,12 @@ const styles = StyleSheet.create({
     height: verticalScale(getResponsiveSize(170)),
     borderBottomLeftRadius: scale(getResponsiveSize(400)),
     borderBottomRightRadius: scale(getResponsiveSize(400)),
-    transform: [{scaleX: getHeaderTransform()}],
+    transform: [{ scaleX: getHeaderTransform() }],
   },
   searchContainer: {
     paddingHorizontal: scale(getResponsiveSize(50)),
     paddingVertical: verticalScale(getResponsiveSize(20)),
-    transform: [{scaleX: getSearchTransform()}],
+    transform: [{ scaleX: getSearchTransform() }],
     paddingTop: verticalScale(getResponsiveSize(40)),
   },
   searchInputContainer: {
@@ -240,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(getResponsiveSize(20)),
     paddingVertical: verticalScale(getResponsiveSize(10)),
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,

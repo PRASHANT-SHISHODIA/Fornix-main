@@ -190,7 +190,7 @@ const Course = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar backgroundColor="#F87F16" barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header Section */}
       <LinearGradient

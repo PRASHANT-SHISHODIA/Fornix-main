@@ -113,12 +113,12 @@ const LoginDetail = () => {
 
         await AsyncStorage.setItem("user_id", data.user.id);
 
-        await fetchAndSaveSubjects(data.token)
+        // await fetchAndSaveSubjects(data.token)
         console.log("TOKEN SAVED", data.token);
         console.log("USER ID SAVED", data.user.id);
 
         Alert.alert('Success', 'Login successful!');
-        navigation.navigate('Diversionscreen');
+        navigation.navigate('TabNavigation');
       } else {
         Alert.alert('Invalid Credentials', data.message || 'Try again.');
       }

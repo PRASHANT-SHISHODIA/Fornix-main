@@ -51,6 +51,7 @@ const getSearchTransform = () => {
 const Subjectdetail = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  
 
   // 🔹 Subject list (with navigation routes)
   const subjects = [

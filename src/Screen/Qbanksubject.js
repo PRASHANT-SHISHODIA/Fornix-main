@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useRoute } from '@react-navigation/native';
+import Course from './Course';
 
 // Screen dimensions
 const { width, height } = Dimensions.get('window');
@@ -60,7 +61,9 @@ const Qbanksubject = () => {
   const route = useRoute();
   const mood = route?.params?.mood ?? null;
   console.log('MOOD RECEVID IN QBANKSSUBJECT :', mood?.title)
+  const [selectedCourse, setSelectedCourse] = useState (null);
   // const blinkAnim = useRef(new Animated.Value(0)).current;
+  console.log("COURSE IN THE",selectedCourse)
 
   // 🔹 Subject list (with navigation routes)
   const subjects = [
@@ -71,6 +74,17 @@ const Qbanksubject = () => {
     { id: '5', title: 'Pathology', icon: 'vials', route: 'PathologyScreen' },
     { id: '6', title: 'Pharmacology', icon: 'pills', route: 'PharmacologyScreen' },
   ];
+
+  useEffect(()=>{
+    const loadCourse =  async() =>{
+      const courseData = await AsyncStorage.getItem('selectedCourse');
+      if(courseData){
+        setSelectedCourse(JSON.parse(courseData));
+      }
+    };
+    loadCourse();
+    console.log("LOAD", loadCourse)
+  },[])
 
   // 🔹 Blink animation for upgrade button
   const blinkAnim = useRef(new Animated.Value(0)).current;
@@ -205,18 +219,19 @@ const Qbanksubject = () => {
                 key={sub.id}
                 style={styles.featureCard}
                 onPress={() => {
-                  if (mood) {
+                  if (selectedCourse?.name ==='AMC') {
                     // 🔹 Mode flow
-                    navigation.navigate('Chapterwise', {
+                    navigation.navigate('Mood', {
                       subjectId: sub.id,
                       subjectName: sub.name,
-                      mood: mood,          // id + title
+                      Course:selectedCourse,         // id + title
                     });
                   } else {
                     // 🔹 QBank flow
                     navigation.navigate('Chapterwise', {
                       subjectId: sub.id,
                       subjectName: sub.name,
+                      Course:selectedCourse,
                     });
                   }
                 }}

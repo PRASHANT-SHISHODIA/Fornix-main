@@ -248,7 +248,7 @@ const Signupdetail = () => {
     console.log(response.data);
 
     Alert.alert("Success", "Account created successfully!");
-    navigation.navigate("Diversionscreen");
+    navigation.navigate("CourseChoose");
 
   } catch (error) {
     console.log(error?.response?.data);

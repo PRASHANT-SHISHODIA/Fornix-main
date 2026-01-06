@@ -93,7 +93,7 @@ const CourseSunscription = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar backgroundColor="#F87F16" barStyle="light-content" />
+      <StatusBar backgroundColor="#F87F16" barStyle="dark-content" />
 
       <ScrollView
         style={styles.scrollView}
