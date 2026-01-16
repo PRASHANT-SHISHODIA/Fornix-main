@@ -1,5 +1,5 @@
 // Fornixqbank2.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, } from 'react';
 import {
   View,
   Text,
@@ -65,10 +65,28 @@ const Fornixqbank2 = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
-  const { mode, topicId, topicName = 'Anatomy', mood, chapterId, ChapterName } = route.params || {};
+  const { mode, topicId, topicName = 'Anatomy', mood, chapterId, ChapterName,subjectId, Course } = route.params || {};
   const Difficult = mood?.title ?? null
   console.log("mood in quiz", Difficult)
   console.log("p", route.params)
+  console.log("SUBJECT ID IN FORNIX QBANK2", subjectId)
+  console.log("COURSE IN FORNIX QBANK2", Course)
+
+
+  const getQuestionTypeFromMood = (moodTitle) => {
+  switch (moodTitle) {
+    case 'Funny / Easy':
+      return 'easy';
+    case 'Moderate':
+      return 'medium';
+    case 'Competitive':
+    case 'Difficult':
+      return 'hard';
+    default:
+      return 'easy';
+  }
+};
+
 
   // 🔹 State variables
   const [selectedOption, setSelectedOption] = useState(null);
@@ -169,6 +187,56 @@ const Fornixqbank2 = () => {
     return () => backHandler.remove();
   }, []);
 
+
+
+  const callSubjectQuizApi = async () => {
+  if (!userId || !subjectId || !mood) {
+    console.log('❌ Missing data for subject quiz');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const questionType = getQuestionTypeFromMood(mood.title);
+
+    const body = {
+      user_id: userId,
+      subject_id: subjectId,
+      question_type: questionType,
+      limit: 20,
+    };
+
+    console.log('📤 SUBJECT QUIZ BODY:', body);
+
+    const response = await axios.post(
+      'https://fornix-medical.vercel.app/api/v1/subject-quiz/start',
+      body
+    );
+
+    if (response?.data?.success) {
+      setQuestions(response.data.data);
+      setAttemptId(response.data.attempt_id);
+      setCurrentIndex(0);
+
+      console.log('✅ SUBJECT QUIZ LOADED');
+      console.log('ATTEMPT:', response.data.attempt_id);
+      console.log('QUESTIONS:', response.data);
+    } else {
+      Alert.alert('Error', 'Subject quiz failed');
+    }
+  } catch (error) {
+    console.log(
+      '❌ SUBJECT QUIZ ERROR:',
+      error?.response?.data || error.message
+    );
+    Alert.alert('Error', 'Unable to load subject quiz');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   // 🔹 API Calls
   const callDirectQuizApi = async () => {
     try {
@@ -240,13 +308,17 @@ const Fornixqbank2 = () => {
 
   useEffect(() => {
     if (!userId) return;
+    if(mood && subjectId){
+      callSubjectQuizApi();
+      return;
+    }
     if (mode === 'topic' && topicId) {
       callTopicQuizApi();
     }
     if (mode === 'DIRECT') {
       callDirectQuizApi();
     }
-  }, [userId, mode, topicId]);
+  }, [userId, mode, topicId, mood, subjectId]);
 
   const handleHardwareBackPress = () => {
     stopTTS();
@@ -344,7 +416,47 @@ const Fornixqbank2 = () => {
     }).start();
   }
 
+  const submitAMCQuiz = async () => {
+    try{
+      setSubmitting(true);
+      startSubmitProgress();
+      const payload = {
+        user_id: userId,
+        attempt_id: attempted,
+        subject_id: subjectId,
+        question_type: getQuestionTypeFromMood(mood.title),
+        time_taken_seconds: getTimeTakenInSeconds(),
+        answers: useQuizStore.getState().answers,
+      };
+      console.log('Amc Submit Payload:', JSON.stringify(payload, null, 2));
+      const response = await axios.post("https://fornix-medical.vercel.app/api/v1/subject-quiz/submit",
+        payload
+      );
+      console.log("AMC SUBMIT RESPONSE", response);
+      if (response?.data?.success) {
+        setTimeout(() => {
+          setSubmitting(false);
+          handleSubmitSuccess(response?.data);
+        }, 1800);
+      } else {
+        setSubmitting(false);
+        Alert.alert("Error", "AMC Submission failed");
+      }
+    } catch (error) {
+      console.log("AMC SUBMIT ERROR :", error?.response?.data || error.message);
+      Alert.alert("Error", "AMC Quiz Submit Failed");
+      setSubmitting(false);
+    }
+  }
+
   const SubmitQuiz = async () => {
+
+    // const isAMC = subjectId === subjectId; // Replace with actual AMC subject ID
+    const {isAMC = false} = route.params || {};
+    if (isAMC) {
+      await submitAMCQuiz();
+      return;
+    }
     try {
       setSubmitting(true);
       startSubmitProgress();
@@ -377,7 +489,10 @@ const Fornixqbank2 = () => {
       userAnswers: userAnswers,
       questions: questions,
       timeTaken: getTimeTakenInSeconds(),
-      outOf: ''
+      outOf: '',
+      attemptedId: data?.attempt_id,
+      userId: userId,
+      
     })
   }
 

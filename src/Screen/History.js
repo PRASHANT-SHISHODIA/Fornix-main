@@ -131,12 +131,6 @@ const History = () => {
     return '#F44336'; // Red for low scores
   };
 
-  // const formatTimeTaken = (seconds) => {
-  //   if (!seconds) return 'N/A';
-  //   const minutes = Math.floor(seconds / 60);
-  //   const remainingSeconds = seconds % 60;
-  //   return `${minutes}m ${remainingSeconds}s`;
-  // };
   const formatTimeTaken = (seconds) => {
   const time = Number(seconds);
   if (!time || isNaN(time)) return 'N/A';

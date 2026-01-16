@@ -7,11 +7,18 @@ import {
   StatusBar,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
+  Alert,
+  Image
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import LinearGradient from 'react-native-linear-gradient';
-import Tts from 'react-native-tts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import Sound from 'react-native-sound'; Sound.setCategory('Playback');
+
+
 
 /* ===================== SCREEN SIZE ===================== */
 const { width, height } = Dimensions.get('window');
@@ -59,43 +66,176 @@ const CheckAttempted = ({ route, navigation }) => {
 
   const [activeTab, setActiveTab] = useState('all');
   const [expanded, setExpanded] = useState({});
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speakingQuestionId, setSpeakingQuestionId] = useState(null);
+  // const [isSpeaking, setIsSpeaking] = useState(false);
+  // const [speakingQuestionId, setSpeakingQuestionId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [apiData, setApiData] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [currentSound, setCurrentSound] = useState(null);
+  const [playingQuestionId, setPlayingQuestionId] = useState(null);
 
 
-  /* ===================== DATA ===================== */
-  const questions =
-    route?.params?.questions?.length > 0
-      ? route.params.questions
-      : DEMO_QUESTIONS;
+  useEffect(() => {
+    console.log("CHECK ATTEMPTED PARAMS:", route.params);
+  }, []);
 
-  const userAnswers = route?.params?.userAnswers || [1, 0, 2];
-  const timeTaken = route?.params?.timeTaken || 180;
 
-  /* ===================== PROCESS QUESTIONS ===================== */
-  const processedQuestions = useMemo(() => {
-    return questions.map((q, index) => {
-      const userAnswer = userAnswers[index];
-      const isCorrect = userAnswer === q.correctAnswer;
+  /* ===================== GET USER ID ===================== */
+  useEffect(() => {
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('user_id');
+        setUserId(storedUserId);
+        console.log('User ID fetched:', storedUserId);
+      } catch (error) {
+        console.log('Error fetching user ID:', error);
+      }
+    };
+    getUserIdFromStorage();
+  }, []);
+
+  /* ===================== API CALL ===================== */
+  const fetchAttemptDetails = async () => {
+    try {
+      setLoading(true);
+
+      // Get parameters from navigation or route
+      const attemptId = route?.params?.attemptedId;
+      const user_id = route?.params?.userId || userId;
+      console.log('🔍 Fetching attempt details for:', { attemptId, user_id });
+
+      if (!attemptId || !user_id) {
+        console.log('Missing required parameters:', { attemptId, user_id });
+        Alert.alert('Error', 'Unable to load attempt details. Missing parameters.');
+        setLoading(false);
+        return;
+      }
+
+      const payload = {
+        user_id: user_id,
+        attempt_id: attemptId
+      };
+
+      console.log('📤 API Payload:', payload);
+
+      const response = await axios.post(
+        'https://fornix-medical.vercel.app/api/v1/quiz-attempt/details',
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000, // 10 seconds timeout
+        }
+      );
+
+      if (response.data?.success) {
+        console.log('✅ API Response received');
+        setApiData(response.data);
+        console.log("📥 Attempt Data:", response.data);
+      } else {
+        Alert.alert('Error', response.data?.message || 'Failed to fetch attempt details');
+      }
+    } catch (error) {
+      console.log('❌ API Error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+
+      if (error.response?.status === 404) {
+        Alert.alert('Not Found', 'Attempt details not found. It may have been deleted.');
+      } else if (error.code === 'ECONNABORTED') {
+        Alert.alert('Timeout', 'Request timed out. Please check your internet connection.');
+      } else {
+        Alert.alert('Error', 'Failed to load attempt details. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ===================== INITIALIZE DATA ===================== */
+  useEffect(() => {
+    if (userId) {
+      fetchAttemptDetails();
+    }
+  }, [userId]);
+
+  /* ===================== PROCESS API DATA ===================== */
+  const { attempt, review, processedQuestions } = useMemo(() => {
+    if (!apiData) {
+      return {
+        attempt: null,
+        review: [],
+        processedQuestions: [],
+      };
+    }
+
+    const attempt = apiData.attempt;
+    const review = apiData.review || [];
+
+    // Transform API data to match component structure
+    const processedQuestions = review.map((item, index) => {
+      const question = item.question;
+      const userAnswerKey = item.selected_key;
+      const correctAnswerKey = item.correct_key;
+      const isCorrect = item.is_correct;
+
+      // Find user answer index
+      const userAnswerIndex = question.options.findIndex(
+        opt => opt.option_key === userAnswerKey
+      );
+
+      // Find correct answer index
+      const correctAnswerIndex = question.options.findIndex(
+        opt => opt.option_key === correctAnswerKey
+      );
+
+      // Convert options array to simple text array
+      const options = question.options.map(opt => opt.content);
 
       return {
-        ...q,
+        id: question.id,
         index: index + 1,
-        userAnswer,
+        question: question.question_text,
+        options,
+        explanation: question.explanation,
+
+        // ✅ AUDIO URLS
+        femaleAudio: question.female_explanation_audio_url,
+        maleAudio: question.male_explanation_audio_url,
+
+        correctAnswer: correctAnswerIndex,
+        userAnswer: userAnswerIndex,
         isCorrect,
-        timeSpent: `${Math.floor(timeTaken / questions.length)}s`,
+        difficulty: question.question_type,
+        question_image_url: question.question_image_url,
+        option_keys: question.options.map(opt => opt.option_key),
+        selected_key: userAnswerKey,
+        correct_key: correctAnswerKey,
       };
     });
-  }, [questions, userAnswers]);
 
+    return {
+      attempt,
+      review,
+      processedQuestions,
+    };
+  }, [apiData]);
+
+  /* ===================== FILTER QUESTIONS ===================== */
   const filteredQuestions = useMemo(() => {
-    if (activeTab === 'correct')
+    if (activeTab === 'correct') {
       return processedQuestions.filter(q => q.isCorrect);
-    if (activeTab === 'wrong')
+    }
+    if (activeTab === 'wrong') {
       return processedQuestions.filter(q => !q.isCorrect);
+    }
     return processedQuestions;
   }, [activeTab, processedQuestions]);
 
+  /* ===================== STATS ===================== */
   const total = processedQuestions.length;
   const correct = processedQuestions.filter(q => q.isCorrect).length;
   const wrong = total - correct;
@@ -112,48 +252,75 @@ const CheckAttempted = ({ route, navigation }) => {
         <Icon name="arrow-left" size={18} color="#fff" />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>Attempted Questions</Text>
-      <View style={{ width: 20 }} />
+      <TouchableOpacity onPress={fetchAttemptDetails} disabled={loading}>
+        <Icon
+          name="sync-alt"
+          size={18}
+          color="#fff"
+          style={loading && { opacity: 0.5 }}
+        />
+      </TouchableOpacity>
     </View>
   );
 
-  useEffect(() => {
-    let startListener, finishListener, cancelListener;
+  const getAudioUrl = (question) => {
+    return question.femaleAudio || question.maleAudio || null;
+  };
 
-    const initTts = async () => {
-      try {
-        await Tts.getInitStatus();
-        Tts.setDefaultLanguage('en-US');
-        Tts.setDefaultRate(0.5);
-        Tts.setDefaultPitch(1.0);
 
-        startListener = Tts.addEventListener('tts-start', () =>
-          setIsSpeaking(true),
-        );
-        finishListener = Tts.addEventListener('tts-finish', () => {
-          setIsSpeaking(false);
-          setSpeakingQuestionId(null);
-        });
-        cancelListener = Tts.addEventListener('tts-cancel', () => {
-          setIsSpeaking(false);
-          setSpeakingQuestionId(null);
-        });
-      } catch (err) {
-        console.log('TTS init error', err);
+ 
+
+  const handleAudioExplanation = (question) => {
+    const audioUrl = getAudioUrl(question);
+
+    if (!audioUrl) {
+      Alert.alert('No Audio', 'Audio explanation not available');
+      return;
+    }
+
+    // Stop previous audio
+    if (currentSound) {
+      currentSound.stop();
+      currentSound.release();
+      setCurrentSound(null);
+      setPlayingQuestionId(null);
+    }
+
+    // Same question pressed again → stop
+    if (playingQuestionId === question.id) {
+      return;
+    }
+
+    const sound = new Sound(audioUrl, null, (error) => {
+      if (error) {
+        console.log('Audio load error:', error);
+        Alert.alert('Error', 'Unable to play audio');
+        return;
       }
-    };
 
-    initTts();
+      setCurrentSound(sound);
+      setPlayingQuestionId(question.id);
 
-    return () => {
-      startListener?.remove();
-      finishListener?.remove();
-      cancelListener?.remove();
-      Tts.stop();
-    };
-  }, []);
+      sound.play(() => {
+        sound.release();
+        setCurrentSound(null);
+        setPlayingQuestionId(null);
+      });
+    });
+  };
+
+  useEffect(() => {
+  return () => {
+    if (currentSound) {
+      currentSound.stop();
+      currentSound.release();
+    }
+  };
+}, [currentSound]);
 
 
-  /* ===================== STATS ===================== */
+
+  /* ===================== STATS CARD ===================== */
   const Stats = () => (
     <LinearGradient
       colors={['#F87F16', '#FFA726']}
@@ -162,6 +329,20 @@ const CheckAttempted = ({ route, navigation }) => {
       <StatItem label="Total" value={total} />
       <StatItem label="Correct" value={correct} color="#4CAF50" />
       <StatItem label="Wrong" value={wrong} color="#F44336" />
+      {attempt && (
+        <>
+          <StatItem
+            label="Score"
+            value={`${attempt.score || 0}%`}
+            color="#2196F3"
+          />
+          <StatItem
+            label="Time"
+            value={`${Math.floor(attempt.time_taken_seconds / 60)}m`}
+            color="#9C27B0"
+          />
+        </>
+      )}
     </LinearGradient>
   );
 
@@ -196,36 +377,13 @@ const CheckAttempted = ({ route, navigation }) => {
       ))}
     </View>
   );
-  const handleAudioExplanation = async (question) => {
-    try {
-      // Stop if same question audio is playing
-      if (isSpeaking && speakingQuestionId === question.id) {
-        await Tts.stop();
-        setIsSpeaking(false);
-        setSpeakingQuestionId(null);
-        return;
-      }
 
-      if (!question.explanation) {
-        Alert.alert('No Audio', 'Explanation not available');
-        return;
-      }
 
-      const correctOption =
-        question.options?.[question.correctAnswer] || '';
 
-      const textToSpeak = `
-      Explanation.
-      ${question.explanation}.
-      The correct answer is ${correctOption}.
-    `;
 
-      setSpeakingQuestionId(question.id);
-      Tts.speak(textToSpeak);
-    } catch (error) {
-      console.log('Audio error', error);
-    }
-  };
+
+
+  // Call it when component mounts
 
 
   /* ===================== QUESTION CARD ===================== */
@@ -267,7 +425,7 @@ const CheckAttempted = ({ route, navigation }) => {
 
               <View style={styles.meta}>
                 <Text style={styles.metaText}>
-                  Time: {item.timeSpent}
+                  {item.difficulty ? item.difficulty.toUpperCase() : 'N/A'}
                 </Text>
                 <Text
                   style={[
@@ -292,12 +450,25 @@ const CheckAttempted = ({ route, navigation }) => {
           />
         </TouchableOpacity>
 
+        {/* QUESTION IMAGE */}
+        {item.question_image_url && (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: item.question_image_url }}
+              style={styles.questionImage}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+
         {/* EXPANDED */}
         {isOpen && (
           <View style={styles.expand}>
+            {/* OPTIONS */}
             {item.options.map((opt, i) => {
               const isCorrect = i === item.correctAnswer;
               const isUser = i === item.userAnswer;
+              const optionKey = item.option_keys?.[i] || String.fromCharCode(65 + i);
 
               return (
                 <View
@@ -309,44 +480,103 @@ const CheckAttempted = ({ route, navigation }) => {
                   ]}
                 >
                   <Text style={styles.optionText}>
-                    {String.fromCharCode(65 + i)}. {opt}
+                    {optionKey.toUpperCase()}. {opt}
+                    {isCorrect && ' ✓'}
+                    {isUser && !isCorrect && ' ✗'}
                   </Text>
                 </View>
               );
             })}
 
+            {/* CORRECT ANSWER INDICATOR */}
+            <View style={styles.answerInfo}>
+              <Text style={styles.answerInfoText}>
+                Your Answer: <Text style={styles.answerKey}>
+                  {item.selected_key?.toUpperCase() || 'N/A'}
+                </Text>
+              </Text>
+              <Text style={styles.answerInfoText}>
+                Correct Answer: <Text style={styles.correctKey}>
+                  {item.correct_key?.toUpperCase() || 'N/A'}
+                </Text>
+              </Text>
+            </View>
+
+            {/* EXPLANATION */}
             <Text style={styles.explanation}>
               {item.explanation}
             </Text>
+
+            {/* AUDIO BUTTON */}
             <TouchableOpacity
               style={[
                 styles.audioButton,
-                isSpeaking && speakingQuestionId === item.id && styles.audioButtonActive,
+                playingQuestionId === item.id && styles.audioButtonActive,
+                !getAudioUrl(item) && styles.audioButtonDisabled,
               ]}
               onPress={() => handleAudioExplanation(item)}
+              disabled={!getAudioUrl(item)}
             >
               <Icon
                 name={
-                  isSpeaking && speakingQuestionId === item.id
-                    ? 'pause-circle'
-                    : 'volume-up'
+                  !getAudioUrl(item)
+                    ? 'volume-mute'
+                    : playingQuestionId === item.id
+                      ? 'pause-circle'
+                      : 'volume-up'
                 }
                 size={18}
                 color="#fff"
                 style={{ marginRight: 8 }}
               />
+
               <Text style={styles.audioButtonText}>
-                {isSpeaking && speakingQuestionId === item.id
-                  ? 'Stop Audio'
-                  : 'Audio Explanation'}
+                {!getAudioUrl(item)
+                  ? 'No Audio'
+                  : playingQuestionId === item.id
+                    ? 'Stop Audio'
+                    : 'Audio Explanation'}
               </Text>
             </TouchableOpacity>
-
           </View>
         )}
       </View>
     );
   };
+
+  /* ===================== LOADING STATE ===================== */
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <ActivityIndicator size="large" color="#F87F16" />
+        <Text style={styles.loadingText}>Loading attempt details...</Text>
+      </View>
+    );
+  }
+
+  /* ===================== NO DATA STATE ===================== */
+  if (!apiData && !loading) {
+    return (
+      <View style={styles.errorContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <Header />
+        <View style={styles.errorContent}>
+          <Icon name="exclamation-triangle" size={60} color="#F87F16" />
+          <Text style={styles.errorText}>No attempt data found</Text>
+          <Text style={styles.errorSubText}>
+            Please make sure you have completed a quiz
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchAttemptDetails}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   /* ===================== RENDER ===================== */
   return (
@@ -367,6 +597,12 @@ const CheckAttempted = ({ route, navigation }) => {
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Icon name="clipboard-question" size={50} color="#ccc" />
+            <Text style={styles.emptyText}>No questions found</Text>
+          </View>
+        }
       />
     </View>
   );
@@ -397,15 +633,22 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-around',
+    flexWrap: 'wrap',
   },
-  statItem: { alignItems: 'center' },
+  statItem: {
+    alignItems: 'center',
+    marginHorizontal: 8,
+    marginVertical: 4,
+    minWidth: 60,
+  },
   statValue: { fontSize: 24, fontWeight: '700' },
-  statLabel: { color: '#fff' },
+  statLabel: { color: '#fff', fontSize: 12, marginTop: 4 },
 
   tabs: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 10,
+    paddingHorizontal: 16,
   },
   tab: {
     paddingVertical: 8,
@@ -414,7 +657,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   activeTab: { backgroundColor: '#F87F16' },
-  tabText: { color: '#555' },
+  tabText: { color: '#555', fontSize: 12 },
   activeTabText: { color: '#fff', fontWeight: '600' },
 
   list: { paddingHorizontal: 16, paddingBottom: 40 },
@@ -440,7 +683,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  qNumberText: { color: '#fff', fontWeight: '700' },
+  qNumberText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   qInfo: { marginLeft: 10, flex: 1 },
   qText: { fontSize: 14, fontWeight: '500' },
 
@@ -464,30 +707,121 @@ const styles = StyleSheet.create({
   wrong: { backgroundColor: '#FFEBEE' },
   optionText: { fontSize: 13 },
 
+  answerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  answerInfoText: {
+    fontSize: 13,
+    color: '#555',
+  },
+  answerKey: {
+    color: '#F44336',
+    fontWeight: '600',
+  },
+  correctKey: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+
   explanation: {
     marginTop: 8,
     fontSize: 13,
     color: '#555',
+    lineHeight: 18,
   },
   audioButton: {
-  marginTop: 12,
-  backgroundColor: '#1A3848',
-  paddingVertical: 12,
-  paddingHorizontal: 16,
-  borderRadius: 10,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+    marginTop: 12,
+    backgroundColor: '#1A3848',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioButtonActive: {
+    backgroundColor: '#F87F16',
+  },
+  audioButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-audioButtonActive: {
-  backgroundColor: '#F87F16',
-},
+  imageContainer: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  questionImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+  },
 
-audioButtonText: {
-  color: '#FFFFFF',
-  fontSize: 14,
-  fontWeight: '600',
-},
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#555',
+    fontSize: 16,
+  },
 
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  errorContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  errorSubText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  retryButton: {
+    backgroundColor: '#F87F16',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    marginTop: 10,
+    color: '#888',
+    fontSize: 16,
+  },
+  audioButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  audioButtonTextDisabled: {
+    color: '#666',
+  },
 });

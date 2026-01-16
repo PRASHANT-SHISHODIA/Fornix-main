@@ -26,6 +26,7 @@ import Results from '../Screen/Results';
 import History from '../Screen/History'
 import CheckAttempted from '../Screen/CheckAttempted';
 import CourseChoose from '../Screen/CourseChoose';
+import Notes from '../Screen/Notes';
 
 
 
@@ -160,6 +161,12 @@ function RootNavigation() {
         component={CourseChoose}
         options={{headerShown:false}}
         />
+         <Stack.Screen 
+        name='Notes'
+        component={Notes}
+        options={{headerShown:false}}
+        />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

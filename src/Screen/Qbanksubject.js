@@ -61,9 +61,10 @@ const Qbanksubject = () => {
   const route = useRoute();
   const mood = route?.params?.mood ?? null;
   console.log('MOOD RECEVID IN QBANKSSUBJECT :', mood?.title)
-  const [selectedCourse, setSelectedCourse] = useState (null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
   // const blinkAnim = useRef(new Animated.Value(0)).current;
-  console.log("COURSE IN THE",selectedCourse)
+  console.log("COURSE IN THE", selectedCourse)
+  
 
   // 🔹 Subject list (with navigation routes)
   const subjects = [
@@ -75,16 +76,26 @@ const Qbanksubject = () => {
     { id: '6', title: 'Pharmacology', icon: 'pills', route: 'PharmacologyScreen' },
   ];
 
-  useEffect(()=>{
-    const loadCourse =  async() =>{
-      const courseData = await AsyncStorage.getItem('selectedCourse');
-      if(courseData){
-        setSelectedCourse(JSON.parse(courseData));
+  useEffect(() => {
+    const loadCourse = async () => {
+      try {
+        const courseData = await AsyncStorage.getItem('selectedCourse');
+        if (courseData) {
+          const parsed = JSON.parse(courseData);
+          setSelectedCourse(parsed);
+          console.log('COURSE FROM STORAGE 👉', parsed);
+        }
+      } catch (e) {
+        console.log('ERROR LOADING COURSE', e);
       }
     };
+
     loadCourse();
-    console.log("LOAD", loadCourse)
-  },[])
+  }, []);
+
+  const isAMC = selectedCourse?.courseName?.toUpperCase().includes('AMC');
+  console.log('IS AMC COURSE:', isAMC);
+
 
   // 🔹 Blink animation for upgrade button
   const blinkAnim = useRef(new Animated.Value(0)).current;
@@ -123,7 +134,7 @@ const Qbanksubject = () => {
     outputRange: ['#1A3848', '#F87F16'],
   });
 
-  const getSubjectsByCourse = async () => {
+  const getSubjectsByCourse = async (courseId) => {
     try {
       const token = await AsyncStorage.getItem('token');
 
@@ -131,12 +142,11 @@ const Qbanksubject = () => {
       const response = await axios.post(
         'https://fornix-medical.vercel.app/api/v1/subjects',
         {
-          course_id: "cc613b33-3986-4d67-b33a-009b57a72dc8"
+          course_id: 'cc613b33-3986-4d67-b33a-009b57a72dc8',
         }, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
-
         },
       }
       )
@@ -174,10 +184,6 @@ const Qbanksubject = () => {
       </View>
     );
   };
-
-
-
-
 
   return (
     <View
@@ -219,22 +225,24 @@ const Qbanksubject = () => {
                 key={sub.id}
                 style={styles.featureCard}
                 onPress={() => {
-                  if (selectedCourse?.name ==='AMC') {
-                    // 🔹 Mode flow
+                  if (isAMC) {
+                    // 🔹 AMC → Mood flow
                     navigation.navigate('Mood', {
                       subjectId: sub.id,
                       subjectName: sub.name,
-                      Course:selectedCourse,         // id + title
+                      Course: selectedCourse,
+                      from: 'qBankSubject',
                     });
                   } else {
-                    // 🔹 QBank flow
+                    // 🔹 All other courses → QBank flow
                     navigation.navigate('Chapterwise', {
                       subjectId: sub.id,
                       subjectName: sub.name,
-                      Course:selectedCourse,
+                      Course: selectedCourse,
                     });
                   }
                 }}
+
               >
                 <View style={styles.featureContent}>
                   <View style={styles.featureIconContainer}>

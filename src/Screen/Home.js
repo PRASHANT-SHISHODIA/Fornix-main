@@ -367,7 +367,7 @@ const Home = () => {
               />
               <Text style={styles.greeting}>{`${greeting()} ${userName.full_name}`}</Text>
               <TouchableOpacity  
-              onPress={()=>navigation.navigate('Course')}
+              // onPress={()=>navigation.navigate('Course')}
               style={styles.bellIconContainer}>
                 <Icon2
                   name="bell"

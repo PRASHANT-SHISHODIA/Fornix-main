@@ -43,7 +43,17 @@ const getSearchTransform = () => {
 };
 
 const Review = ({ route }) => {
-  const { courseName, price, planType, subtitle, icon, color, features } = route.params || {};
+//  const {courseName, price, planType, icon, color} = route.
+//  params;
+ const {
+    courseName = '',
+    price = 0,
+    planType = 'monthly',
+    icon = 'graduation-cap',
+    color = '#F87F16',
+  } = route?.params || {};
+
+  console.log('Review Screen Params:', route?.params);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [savedCards] = useState([
     { id: 1, type: 'Visa', last4: '4242', expiry: '12/24' },
@@ -101,10 +111,11 @@ const Review = ({ route }) => {
       color
     });
   };
+  
 
   const formatPrice = (price) => {
     if (typeof price === 'string') return price;
-    return `$${price}`;
+    return `₹${price}`;
   };
 
   return (

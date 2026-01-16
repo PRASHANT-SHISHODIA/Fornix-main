@@ -41,6 +41,8 @@ const Results = ({ route, navigation }) => {
 
   useEffect(() => {
     console.log('RESULT DATA:', route.params);
+    console.log('TIME TAKEN:', route.params?.attemptedId);
+
   }, []);
 
 
@@ -340,7 +342,12 @@ const Results = ({ route, navigation }) => {
             }
           ]}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('CheckAttempted')}
+          onPress={() => navigation.navigate('CheckAttempted',{
+            attemptedId: route.params?.attemptedId,
+            userId: route.params?.userId
+
+      
+          })}
         >
           <Text style={[
             styles.buttonText,

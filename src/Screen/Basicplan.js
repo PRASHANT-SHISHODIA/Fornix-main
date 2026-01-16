@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon1 from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Selected from './Selected';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Screen width and height
@@ -63,14 +63,14 @@ const BasicPlan = () => {
       const courseData = await AsyncStorage.getItem('selectedCourse')
       if (courseData) {
         const parsed = JSON.parse(courseData);
-        setSelectedCourse(parsed.name);
+        setSelectedCourse(parsed);
       }
-
 
     };
     loadCourse();
 
   }, []);
+
 
   const features = [
     {
@@ -80,10 +80,10 @@ const BasicPlan = () => {
       description: 'Access question bank',
       onPress: () => navigation.navigate('Qbanksubject'),
     },
-    selectedCourse === 'AMC'
+    selectedCourse?.courseName?.includes  ('AMC')
       ? {
         id: '2',
-        title: 'PYQT',
+        title: 'PYTs',
         icon: 'file-alt',
         description: 'Previous year questions',
         onPress: () => navigation.navigate('PYQs'),
@@ -114,8 +114,8 @@ const BasicPlan = () => {
     {
       id: '5',
       title: 'Notes',
-      icon: 'Notes',
-      description: 'Performance analysis',
+      icon: 'sticky-note',
+      description: 'Study notes',
       onPress: () => navigation.navigate('Notes'),
     },
   ];

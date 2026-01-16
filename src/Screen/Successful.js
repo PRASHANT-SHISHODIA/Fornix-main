@@ -70,7 +70,7 @@ const Successful = ({ route }) => {
   const handleGoHome = () => {
     navigation.reset({
       index: 0,
-      routes: [{ name: 'CourseChoose' }],
+      routes: [{ name: 'TabNavigation' }],
     });
   };
 

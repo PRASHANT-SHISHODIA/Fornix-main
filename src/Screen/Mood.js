@@ -1,5 +1,5 @@
 // Mood.js
-import React, {useRef, useEffect, useState} from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 // Screen dimensions
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // 🔹 Responsive scaling functions
 const scale = size => (width / 375) * size;
@@ -45,13 +45,48 @@ const Mood = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [selectedMood, setSelectedMood] = useState(null);
+  const route = useRoute();
+  const from = route?.params?.from || null;
+  const subjectId = route?.params?.subjectId;
+  const subjectName = route?.params?.subjectName;
+  const Course = route?.params?.Course;
+  console.log('Via Mood Screen - Subject ID:', subjectId);
+  console.log('Via Mood Screen - Subject Name:', subjectName);
+  console.log('Via Mood Screen - Course:', Course);
+  console.log('Via Mood Screen - From:', from);
+
+  // const handleStartQuiz = () => {
+  //   if (!selectedMood) {
+  //     console.log('Please select a mood first');
+  //     return;
+  //   }
+  //   console.log('Starting quiz with mood:', selectedMood);
+  //   console.log; ("from value:", from);
+  //   console.log('from type:', typeof from);
+  //   if (from && from.toString().trim() === 'qbanksubject') {
+  //     // ✅ Qbanksubject se aaye ho → new flow
+  //     navigation.navigate('Fornixqbank2', {
+  //       mood: selectedMood,
+  //       subjectId,
+  //       subjectName,
+  //     });
+  //   } else {
+  //     // ✅ Default / old flow
+  //     navigation.navigate('Qbanksubject', {
+  //       mood: selectedMood,
+  //     });
+  //   }
+
+  // };
+
+
 
   // 🔹 Mood options
   const moodOptions = [
-    {id: '1', title: 'Competitive', icon: 'trophy'},
-    {id: '2', title: 'Funny / Easy', icon: 'laugh-beam'},
-    {id: '3', title: 'Moderate', icon: 'balance-scale'},
-    {id: '4', title: 'Difficult', icon: 'fire'},
+    { id: '1', title: 'Competitive', icon: 'trophy' },
+    { id: '2', title: 'Funny / Easy', icon: 'laugh-beam' },
+    { id: '3', title: 'Moderate', icon: 'balance-scale' },
+    { id: '4', title: 'Difficult', icon: 'fire' },
   ];
 
   // 🔹 Blink animation for start button
@@ -113,7 +148,7 @@ const Mood = () => {
     <View
       style={[
         styles.container,
-        {paddingTop: insets.top, paddingBottom: insets.bottom},
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
       ]}>
       <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
@@ -172,19 +207,25 @@ const Mood = () => {
         <View style={styles.divider} />
 
         {/* 🔹 Start Quiz Button */}
-        <Animated.View style={[styles.startButton, {backgroundColor}]}>
+        <Animated.View style={[styles.startButton, { backgroundColor }]}>
           <TouchableOpacity
             style={styles.startButtonTouchable}
             onPress={() => {
-              if (selectedMood) {
-                console.log('Start Quiz with mood:', moodOptions.find(m => m.id === selectedMood)?.title);
-                // Navigate to quiz screen with selected mood
-                navigation.navigate('Qbanksubject', { mood: selectedMoodObj });
-              } else {
+              if (!selectedMood) {
                 console.log('Please select a mood first');
-                // You can show an alert here if needed
+                return;
               }
-            }}>
+              console.log('Starting quiz with mood:', selectedMood);
+              navigation.navigate('Fornixqbank2', {
+                mood: selectedMood,
+                subjectId,
+                subjectName,
+                isAMC: true,
+                Course,
+              });
+              // handleStartQuiz();
+            }}
+          >
             <Text style={styles.startButtonText}>
               {selectedMood ? 'Start Quiz' : 'Select a Mood to Start'}
             </Text>
@@ -215,12 +256,12 @@ const styles = StyleSheet.create({
     height: verticalScale(getResponsiveSize(170)),
     borderBottomLeftRadius: scale(getResponsiveSize(400)),
     borderBottomRightRadius: scale(getResponsiveSize(400)),
-    transform: [{scaleX: width < 375 ? 1.5 : width > 414 ? 1.8 : 1.7}],
+    transform: [{ scaleX: width < 375 ? 1.5 : width > 414 ? 1.8 : 1.7 }],
   },
   searchContainer: {
     paddingHorizontal: scale(getResponsiveSize(50)),
     paddingVertical: verticalScale(getResponsiveSize(20)),
-    transform: [{scaleX: width < 375 ? 0.65 : width > 414 ? 0.55 : 0.58}],
+    transform: [{ scaleX: width < 375 ? 0.65 : width > 414 ? 0.55 : 0.58 }],
     paddingTop: verticalScale(getResponsiveSize(60)),
   },
   headerRow: {
@@ -257,7 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(getResponsiveSize(20)),
     paddingVertical: verticalScale(getResponsiveSize(15)),
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,
@@ -302,7 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(getResponsiveSize(10)),
     marginVertical: verticalScale(getResponsiveSize(100)),
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3.84,
     elevation: 5,
