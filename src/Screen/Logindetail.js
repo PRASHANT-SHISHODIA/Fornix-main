@@ -35,50 +35,6 @@ const LoginDetail = () => {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-//  const fetchAndSaveSubjects = async (token) => {
-//   try {
-//     const courseId = await AsyncStorage.getItem('course_id');
-
-//     const response = await axios.post(
-//       'https://fornix-medical.vercel.app/api/v1/subjects',
-//       {
-//         course_id: courseId, // 👈 BODY
-//       },
-//       {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//           'Content-Type': 'application/json',
-//         },
-//       }
-//     );
-
-//     const result = response.data;
-
-//     if (result.success && result.data?.length > 0) {
-
-//       // ✅ SAVE ALL SUBJECTS
-//       await AsyncStorage.setItem(
-//         'subjects',
-//         JSON.stringify(result.data)
-//       );
-
-//       // ✅ SAVE DEFAULT SUBJECT ID
-//       await AsyncStorage.setItem(
-//         'subject_id',
-//         result.data[0].id
-//       );
-
-//       console.log('SUBJECTS SAVED:', result.data);
-//     }
-
-//   } catch (error) {
-//     console.log(
-//       'SUBJECT API ERROR:',
-//       error.response?.data || error.message
-//     );
-//   }
-// };
-
 
   // Handle login
   const handleLogin = async () => {

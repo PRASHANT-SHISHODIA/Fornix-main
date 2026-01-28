@@ -1,5 +1,5 @@
 // AIscreen.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon1 from 'react-native-vector-icons/Ionicons';
-import {useNavigation} from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 // Screen dimensions
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // 🔹 Responsive scaling functions
 const scale = size => (width / 375) * size;
@@ -51,7 +53,29 @@ const getSearchTransform = () => {
 const AIscreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const [courseName, setCourseName] = useState(null);
 
+  // console.log("coures Name",courseName)
+  console.log('RAW 👉', JSON.stringify(courseName));
+
+
+  useEffect(() => {
+    const loadSelectedCourse = async () => {
+      try {
+        const raw = await AsyncStorage.getItem('selectedCourse');
+        if (!raw) return;
+
+        const parsed = JSON.parse(raw);
+        setCourseName(parsed?.courseName || null);
+      } catch (e) {
+        console.log('Course load error', e);
+      }
+    };
+
+    loadSelectedCourse();
+  }, []);
+
+ 
   const features = [
     {
       id: '1',
@@ -87,12 +111,25 @@ const AIscreen = () => {
       id: '6',
       title: 'T & D',
       icon: 'book',
-      onPress: () => navigation.navigate('TrainingDevelopment'),
+      onPress: () => navigation.navigate('TestAndDiscussion'),
     },
   ];
+  
+  const normalizedCourseName = courseName
+  ? courseName.trim().toUpperCase()
+  : '';
+
+
+  const filteredFeatures = Array.isArray(features)
+  ? normalizedCourseName === 'AMC'
+    ? features.filter(item =>
+        ['CCD Podcast', 'Smart Tracking', 'T & D'].includes(item.title),
+      )
+    : features
+  : [];
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top}]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
       <ScrollView
@@ -118,10 +155,8 @@ const AIscreen = () => {
             </View>
           </View>
         </View>
-
-        {/* Features Grid */}
         <View style={styles.featuresGrid}>
-          {features.map(feature => (
+          {filteredFeatures?.map(feature => (
             <TouchableOpacity
               key={feature.id}
               style={styles.featureCard}
@@ -141,6 +176,8 @@ const AIscreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+
+
 
         {/* Optional Note Section */}
         <View style={styles.noteContainer}>
@@ -174,12 +211,12 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: scale(getResponsiveSize(400)),
     borderBottomRightRadius: scale(getResponsiveSize(400)),
     height: verticalScale(getResponsiveSize(170)),
-    transform: [{scaleX: getHeaderTransform()}],
+    transform: [{ scaleX: getHeaderTransform() }],
   },
   searchContainer: {
     paddingHorizontal: scale(getResponsiveSize(50)),
     paddingVertical: verticalScale(getResponsiveSize(20)),
-    transform: [{scaleX: getSearchTransform()}],
+    transform: [{ scaleX: getSearchTransform() }],
     paddingTop: verticalScale(getResponsiveSize(40)),
   },
   searchInputContainer: {
@@ -215,7 +252,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(getResponsiveSize(20)),
     paddingVertical: verticalScale(getResponsiveSize(10)),
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,

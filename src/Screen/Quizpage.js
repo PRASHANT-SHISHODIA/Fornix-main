@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,195 +8,284 @@ import {
   ScrollView,
   StatusBar,
   Animated,
+  ActivityIndicator,
+  Image,
+  Alert,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import MockTest from './MockTest';
 
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Enhanced responsive scaling functions
-const scale = size => {
-  const baseWidth = 375; // iPhone 6/7/8 width
-  return (width / baseWidth) * size;
+/* ---------- Responsive Helpers ---------- */
+const scale = size => (width / 375) * size;
+const verticalScale = size => (height / 812) * size;
+
+const responsiveFontSize = size => {
+  const scaleFactor = width / 375;
+  return size * scaleFactor;
 };
 
-const verticalScale = size => {
-  const baseHeight = 812; // iPhone X height
-  return (height / baseHeight) * size;
-};
+/* ---------- BASE API ---------- */
+const START_TEST_API =
+  'https://fornix-medical.vercel.app/api/v1/mobile/mock-tests';
 
-const moderateScale = (size, factor = 0.5) => {
-  return size + (scale(size) - size) * factor;
-};
-
-// Responsive font size function
-const responsiveFontSize = (size) => {
-  const scaleFactor = width / 375; // Base width iPhone 6/7/8
-  const newSize = size * scaleFactor;
-  
-  if (width > 500) { // Tablet
-    return Math.min(newSize, size * 1.2);
-  }
-  
-  // For very small screens
-  if (width < 350) {
-    return Math.max(newSize, size * 0.8);
-  }
-  
-  return newSize;
-};
-
+/* ===================================================== */
 const Quizpage = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const route = useRoute();
+
+  /* ---------- Route Params (Mood Screen) ---------- */
+  const { mode, testId } = route.params || {};
+
+  /* ---------- States ---------- */
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState([]);
+  const [attemptId, setAttemptId] = useState(null);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState({}); // {0:'a',1:'b'}
 
   const [timeLeft, setTimeLeft] = useState(60);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions, setTotalQuestions] = useState(10);
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
   const timerRef = useRef(null);
+  const [totalTimeTaken, setTotalTimeTaken] = useState(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Timer countdown
+  /* ---------- Fetch User ID + Start Test ---------- */
+  useEffect(() => {
+    initTest();
+  }, []);
+
+  const initTest = async () => {
+    try {
+      setLoading(true);
+
+      const userId = await AsyncStorage.getItem('user_id');
+
+      console.log('🧠 MODE:', mode);
+      console.log('🧪 TEST ID:', testId);
+      console.log('👤 USER ID:', userId);
+
+      if (!userId || !testId) {
+        Alert.alert('Error', 'User ID or Test ID missing');
+        return;
+      }
+
+      const res = await axios.post(
+        `${START_TEST_API}/${testId}/start`,
+        {
+          user_id: userId,
+          mode: mode || 'practice',
+        },
+      );
+
+      console.log('📦 START TEST RESPONSE:', res.data);
+
+      if (res.data?.success) {
+        setAttemptId(res.data.attempt?.id);
+        setQuestions(res.data.questions || []);
+      } else {
+        Alert.alert('Error', 'Unable to start test');
+      }
+    } catch (err) {
+      console.log('❌ START TEST ERROR:', err);
+      Alert.alert('Error', 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------- Timer ---------- */
+  // useEffect(() => {
+  //   if (timeLeft > 0) {
+  //     timerRef.current = setTimeout(() => {
+  //       setTimeLeft(prev => prev - 1);
+  //     }, 1000);
+  //   }
+  //   return () => clearTimeout(timerRef.current);
+  // }, [timeLeft]);
   useEffect(() => {
     if (timeLeft > 0) {
       timerRef.current = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
+        setTimeLeft(prev => prev - 1);
+        setTotalTimeTaken(prev => prev + 1);
       }, 1000);
     }
-
     return () => clearTimeout(timerRef.current);
   }, [timeLeft]);
 
-  // Format time as MM:SS
+
   const formatTime = seconds => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s
       .toString()
       .padStart(2, '0')}`;
   };
 
-  // Handle option selection
-  const handleOptionSelect = option => {
-    setSelectedOption(option);
+  /* ---------- Option Select ---------- */
+  const handleOptionSelect = key => {
+    setAnswers(prev => ({
+      ...prev,
+      [currentIndex]: key,
+    }));
+
     Animated.spring(progressAnim, {
       toValue: 1,
       useNativeDriver: true,
     }).start();
   };
 
-  // Options data
-  const options = [
-    {id: 'A', text: 'Right atrium'},
-    {id: 'B', text: 'Left atrium'},
-    {id: 'C', text: 'Right ventricle'},
-    {id: 'D', text: 'Left ventricle'},
-  ];
+  const selectedOption = answers[currentIndex] || null;
 
-  // Calculate dynamic padding and margins based on screen size
-  const getDynamicPadding = () => {
-    if (width < 350) return scale(12); // Very small phones
-    if (width < 400) return scale(16); // Small phones
-    return scale(20); // Normal and large phones
+  /* ---------- Navigation ---------- */
+  const goNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      setTimeLeft(60);
+      progressAnim.setValue(0);
+    } else {
+      handleSubmit();
+    }
   };
 
-  const getOptionPadding = () => {
-    if (width < 350) return verticalScale(12);
-    if (width < 400) return verticalScale(15);
-    return verticalScale(18);
+  const goPrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+      setTimeLeft(60);
+      progressAnim.setValue(0);
+    }
   };
+  const buildSubmitPayload = () => {
+    return Object.keys(answers).map(index => ({
+      question_id: questions[index]?.id,
+      selected_option: answers[index],
+    }))
+  }
+
+  /* ---------- Submit ---------- */
+  const handleSubmit = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+
+      if (!userId) {
+        Alert.alert("Error", "User Not Found");
+        return;
+      }
+
+      const payload = {
+        user_id: userId,
+        answers: buildSubmitPayload(),
+        time_taken_seconds: totalTimeTaken,
+      };
+      console.log(' Submit Payload', payload);
+
+      const res = await axios.post(
+        `${START_TEST_API}/${testId}/submit`,
+        payload,
+      );
+      console.log('SUBMIT RESPONSE:', res.data);
+
+      if (res.data?.success) {
+        const resultData = res.data.result;
+        navigation.navigate('MockTestResults', {
+          source: 'mocktest',
+          result: resultData,
+          questions: questions,
+        });
+      } else {
+        Alert.alert('Error', "Quiz Submission failed");
+      }
+    } catch (error) {
+      console.log("SUBMIT ERROR", error?.response || error);
+      Alert.alert("Error", 'Something went wrong while Submitting quiz');
+    }
+  };
+
+  /* ---------- Loading ---------- */
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#fff" />
+        {/* <Text style={{alignContent:'center',}}>MockTest .....</Text> */}
+      </View>
+    );
+  }
+
+  const currentQuestion = questions[currentIndex];
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top}]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor="#F87F16" barStyle="dark-content" />
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {paddingHorizontal: getDynamicPadding()}
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        
-        {/* Question Progress */}
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
-            Questions {currentQuestion} of {totalQuestions}
-          </Text>
-        </View>
 
-        {/* Timer Section */}
-        <View style={styles.timerContainer}>
-          <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-        </View>
+        <Text style={styles.progressText}>
+          Question {currentIndex + 1} of {questions.length}
+        </Text>
 
-        {/* Question Section */}
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>
-            {currentQuestion}. Which chamber of the heart receives oxygenated blood from the
-            lungs?
-          </Text>
-        </View>
+        <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
 
-        {/* Options Section */}
-        <View style={styles.optionsContainer}>
-          {options.map((option, index) => (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.optionButton,
-                selectedOption === option.id && styles.optionSelected,
-                {paddingVertical: getOptionPadding()}
-              ]}
-              onPress={() => handleOptionSelect(option.id)}
-              activeOpacity={0.7}>
-              <View style={styles.optionContent}>
-                <View
-                  style={[
-                    styles.optionCircle,
-                    selectedOption === option.id && styles.optionCircleSelected,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.optionId,
-                      selectedOption === option.id && styles.optionIdSelected,
-                    ]}>
-                    {option.id}
-                  </Text>
-                </View>
+        <Text style={styles.questionText}>
+          {currentIndex + 1}. {currentQuestion?.text}
+        </Text>
+
+        {currentQuestion?.image_url && (
+          <Image
+            source={{ uri: currentQuestion.image_url }}
+            style={styles.questionImage}
+            resizeMode="contain"
+          />
+        )}
+
+        {currentQuestion?.options?.map(option => (
+          <TouchableOpacity
+            key={option.key}
+            style={[
+              styles.optionButton,
+              selectedOption === option.key && styles.optionSelected,
+            ]}
+            onPress={() => handleOptionSelect(option.key)}>
+
+            <View style={styles.optionContent}>
+              <View
+                style={[
+                  styles.optionCircle,
+                  selectedOption === option.key &&
+                  styles.optionCircleSelected,
+                ]}>
                 <Text
                   style={[
-                    styles.optionText,
-                    selectedOption === option.id && styles.optionTextSelected,
-                  ]}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit>
-                  {option.text}
+                    styles.optionId,
+                    selectedOption === option.key &&
+                    styles.optionIdSelected,
+                  ]}>
+                  {option.key.toUpperCase()}
                 </Text>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
 
-        {/* Navigation Buttons */}
+              <Text style={styles.optionText}>{option.content}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+
         <View style={styles.navigationContainer}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}>
+          <TouchableOpacity style={styles.navButton} onPress={goPrevious}>
             <Text style={styles.navButtonText}>Previous</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.navButton, styles.nextButton]}
-            onPress={() => {
-              /* Handle next question */
-            }}
-            activeOpacity={0.7}>
-            <Text style={[styles.navButtonText, styles.nextButtonText]}>
-              Next
+            onPress={goNext}>
+            <Text style={styles.navButtonText}>
+              {currentIndex === questions.length - 1 ? 'Submit' : 'Next'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -205,148 +294,94 @@ const Quizpage = () => {
   );
 };
 
+/* ---------- Styles ---------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F87F16',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#F87F16',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: verticalScale(20),
-  },
-  progressContainer: {
-    alignItems: 'center',
-    marginTop: verticalScale(20),
+  container: { flex: 1, backgroundColor: '#F87F16' },
+  scrollContent: { padding: scale(20), paddingBottom: verticalScale(30) },
+  progressText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: responsiveFontSize(14),
     marginBottom: verticalScale(10),
   },
-  progressText: {
-    fontSize: moderateScale(14),
-    fontFamily: 'Poppins-Medium',
-    color: 'white',
-    includeFontPadding: false,
-    textAlign: 'center',
-  },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: verticalScale(25),
-    marginTop: verticalScale(5),
-  },
   timerText: {
-    fontSize: responsiveFontSize(32),
-    fontFamily: 'Poppins-Bold',
-    color: 'white',
-    includeFontPadding: false,
+    color: '#fff',
     textAlign: 'center',
-  },
-  questionContainer: {
-    marginBottom: verticalScale(25),
+    fontSize: responsiveFontSize(30),
+    marginBottom: verticalScale(20),
+    fontFamily: 'Poppins-Bold',
   },
   questionText: {
+    color: '#fff',
     fontSize: responsiveFontSize(18),
-    fontFamily: 'Poppins-SemiBold',
-    color: 'white',
-    lineHeight: moderateScale(24),
-    includeFontPadding: false,
-    textAlign: 'left',
-  },
-  optionsContainer: {
     marginBottom: verticalScale(20),
+    fontFamily: 'Poppins-SemiBold',
+  },
+  questionImage: {
+    width: '100%',
+    height: verticalScale(200),
+    marginBottom: verticalScale(20),
+    borderRadius: 10,
   },
   optionButton: {
-    backgroundColor: 'transparent',
-    borderRadius: moderateScale(12),
-    paddingHorizontal: scale(16),
-    marginBottom: verticalScale(12),
     borderWidth: 2,
-    borderColor: 'white',
-    minHeight: verticalScale(55),
-    justifyContent: 'center',
+    borderColor: '#fff',
+    borderRadius: 12,
+    padding: scale(15),
+    marginBottom: verticalScale(12),
   },
   optionSelected: {
-    borderWidth: 2,
-    borderColor: 'white',
     backgroundColor: '#1A3848',
   },
   optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   optionCircle: {
-    width: moderateScale(34),
-    height: moderateScale(34),
-    borderRadius: moderateScale(17),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: scale(12),
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 2,
-    borderColor: 'white',
-    minWidth: moderateScale(34),
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   optionCircleSelected: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
   },
   optionId: {
-    fontSize: moderateScale(14),
+    color: '#fff',
     fontFamily: 'Poppins-SemiBold',
-    color: 'white',
-    includeFontPadding: false,
-    textAlign: 'center',
   },
   optionIdSelected: {
     color: '#1A3848',
   },
   optionText: {
     flex: 1,
+    color: '#fff',
     fontSize: responsiveFontSize(15),
-    fontFamily: 'Poppins-Medium',
-    color: 'white',
-    includeFontPadding: false,
-    textAlign: 'left',
-    flexWrap: 'wrap',
-  },
-  optionTextSelected: {
-    color: 'white',
-    fontFamily: 'Poppins-SemiBold',
   },
   navigationContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: verticalScale(15),
-    paddingHorizontal: scale(10),
+    marginTop: verticalScale(20),
   },
   navButton: {
-    borderRadius: moderateScale(10),
-    paddingVertical: verticalScale(14),
-    paddingHorizontal: scale(10),
-    minWidth: scale(20),
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'white',
-    backgroundColor: 'transparent',
     flex: 0.48,
-    maxHeight: verticalScale(55),
+    borderWidth: 1,
+    borderColor: '#fff',
+    paddingVertical: verticalScale(14),
+    borderRadius: 10,
+    alignItems: 'center',
   },
   nextButton: {
     backgroundColor: '#1A3848',
     borderColor: '#1A3848',
-    
   },
   navButtonText: {
-    fontSize: responsiveFontSize(15),
+    color: '#fff',
     fontFamily: 'Poppins-SemiBold',
-    color: 'white',
-    includeFontPadding: false,
-    textAlign: 'center',
-    
-  },
-  nextButtonText: {
-    color: 'white',
   },
 });
 

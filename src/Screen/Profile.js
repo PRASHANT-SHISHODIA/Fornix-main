@@ -84,7 +84,7 @@ const Profile = () => {
     },
     {
       id: '6',
-      title: 'Reset The App',
+      title: 'Reset The Course',
       icon: 'refresh',
       onPress: () => showResetConfirmation()
     },

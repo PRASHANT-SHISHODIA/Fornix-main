@@ -238,7 +238,7 @@ const History = () => {
       </Text>
       <TouchableOpacity
         style={styles.startQuizButton}
-        onPress={() => navigation.navigate('Home')}
+        onPress={() => navigation.navigate('BasicPlan')}
       >
         <Text style={styles.startQuizText}>Start a Quiz</Text>
       </TouchableOpacity>

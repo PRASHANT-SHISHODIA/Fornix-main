@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,16 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {useNavigation} from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { launchImageLibrary } from "react-native-image-picker";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 // Country data with high-quality flag images
 const countries = [
@@ -198,79 +199,92 @@ const Signupdetail = () => {
     setDropdownVisible(false);
   };
 
-  // Handle Submit
- const handleNext = async () => {
-  const validationResult = {
-    name: name.trim() === '', 
-    email: !emailRegex.test(email),
-    password: password.length < 6,
-    phone: phoneNumber.trim().length !== 10,
+  const saveUserData = async (user) => {
+    try {
+      await AsyncStorage.setItem('user_data', JSON.stringify(user));
+      console.log('User data saved successfully');
+    } catch (error) {
+      console.log("Error saving user data :", error);
+    }
   };
 
-  setErrorFields(validationResult);
+  // Handle Submit
+  const handleNext = async () => {
+    const validationResult = {
+      name: name.trim() === '',
+      email: !emailRegex.test(email),
+      password: password.length < 6,
+      // phone: phoneNumber.trim().length !== 10,
+      phone: phoneNumber.trim().length < 7,
+    };
 
-  if (Object.values(validationResult).includes(true)) {
-    Alert.alert("Invalid Input", "Please correct the highlighted fields.");
-    return;
-  }
+    setErrorFields(validationResult);
 
-  setLoading(true);
-
-  try {
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
-    formData.append("password", password);
-    formData.append("phone", phoneNumber);
-
-    if (selectedImage) {
-      formData.append("profile_picture", {
-        uri: selectedImage.uri,
-        type: selectedImage.type || "image/jpeg",
-        name: selectedImage.fileName || "profile.jpg",
-      });
-    } else {
-      Alert.alert("Photo Required", "Please upload your profile picture.");
-      setLoading(false);
+    if (Object.values(validationResult).includes(true)) {
+      Alert.alert("Invalid Input", "Please correct the highlighted fields.");
       return;
     }
 
-    const response = await axios.post(
-      "https://fornix-medical.vercel.app/api/v1/auth/register",   // <-- replace with your backend URL
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("password", password);
+      // formData.append("phone", phoneNumber);
+      formData.append(
+        "phone",
+        `${selectedCountry.dial_code}${phoneNumber}`
+      );
+
+      if (selectedImage) {
+        formData.append("profile_picture", {
+          uri: selectedImage.uri,
+          type: selectedImage.type || "image/jpeg",
+          name: selectedImage.fileName || "profile.jpg",
+        });
+      } else {
+        Alert.alert("Photo Required", "Please upload your profile picture.");
+        setLoading(false);
+        return;
       }
-    );
 
-    console.log(response.data);
+      const response = await axios.post(
+        "https://fornix-medical.vercel.app/api/v1/auth/register",   // <-- replace with your backend URL
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    Alert.alert("Success", "Account created successfully!");
-    navigation.navigate("CourseChoose");
+      console.log("Data", response.data.user);
+      if (response.data?.success === true) {
+        await saveUserData(response.data.user)
+        Alert.alert("Success", "Account created successfully!");
+        navigation.navigate("CourseChoose", { data: response.data.user });
+      }
 
-  } catch (error) {
-    console.log(error?.response?.data);
+    } catch (error) {
+      console.log(error?.response?.data);
+      Alert.alert(
+        "Signup Failed",
+        error.response?.data?.error
+      );
+    }
 
-    Alert.alert(
-      "Signup Failed",
-      error.response?.data?.message || "Something went wrong."
-    );
-  }
-
-  setLoading(false);
-};
-
-
+    setLoading(false);
+  };
 
   // Render country item for dropdown
-  const renderCountryItem = ({item}) => (
+  const renderCountryItem = ({ item }) => (
     <TouchableOpacity
       style={styles.countryItem}
       onPress={() => selectCountry(item)}>
       <Image
-        source={{uri: item.flag}}
+        source={{ uri: item.flag }}
         style={styles.countryFlag}
         resizeMode="cover"
       />
@@ -280,15 +294,25 @@ const Signupdetail = () => {
   );
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top}]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Title */}
       <Text style={styles.title}>Create{'\n'}Account</Text>
-     <TouchableOpacity onPress={pickImage}>
-       <Image
-        source={require('../assets/Images/UploadPhoto.png')}
-        style={{height: 65, width: 65, marginBottom: 35}}
-      />
-     </TouchableOpacity>
+      <TouchableOpacity onPress={pickImage}>
+        <Image
+          source={
+            selectedImage
+              ? { uri: selectedImage.uri }
+              : require('../assets/Images/UploadPhoto.png')
+          }
+          style={{
+            height: 65,
+            width: 65,
+            borderRadius: 32,
+            marginBottom: 35,
+          }}
+        />
+
+      </TouchableOpacity>
 
       {/* Name Input */}
       <View
@@ -299,12 +323,12 @@ const Signupdetail = () => {
             borderColor: errorFields.name ? 'red' : 'transparent',
           },
         ]}>
-         <Icon
-            name="person-outline"
-            size={20}
-            color="#000"
-            style={styles.leftIcon}
-          />
+        <Icon
+          name="person-outline"
+          size={20}
+          color="#000"
+          style={styles.leftIcon}
+        />
         <TextInput
           style={styles.textInput}
           placeholder="Name"
@@ -313,7 +337,7 @@ const Signupdetail = () => {
           onChangeText={text => {
             setName(text);
             if (text.trim() !== '')
-              setErrorFields(prev => ({...prev, name: false}));
+              setErrorFields(prev => ({ ...prev, name: false }));
           }}
         />
       </View>
@@ -336,7 +360,7 @@ const Signupdetail = () => {
           onChangeText={text => {
             setEmail(text);
             if (text.trim() !== '')
-              setErrorFields(prev => ({...prev, email: false}));
+              setErrorFields(prev => ({ ...prev, email: false }));
           }}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -362,7 +386,7 @@ const Signupdetail = () => {
           onChangeText={text => {
             setPassword(text);
             if (text.trim() !== '')
-              setErrorFields(prev => ({...prev, password: false}));
+              setErrorFields(prev => ({ ...prev, password: false }));
           }}
           autoCapitalize="none"
         />
@@ -390,7 +414,7 @@ const Signupdetail = () => {
           style={styles.countrySelector}
           onPress={toggleDropdown}>
           <Image
-            source={{uri: selectedCountry.flag}}
+            source={{ uri: selectedCountry.flag }}
             style={styles.flagIcon}
             resizeMode="cover"
           />
@@ -407,7 +431,7 @@ const Signupdetail = () => {
           onChangeText={text => {
             setPhoneNumber(text);
             if (text.trim() !== '')
-              setErrorFields(prev => ({...prev, phone: false}));
+              setErrorFields(prev => ({ ...prev, phone: false }));
           }}
         />
       </View>
@@ -437,7 +461,12 @@ const Signupdetail = () => {
       </Modal>
 
       {/* Next Button */}
-      <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+      {/* <TouchableOpacity style={styles.nextButton} onPress={handleNext}> */}
+      <TouchableOpacity
+        style={[styles.nextButton, loading && { opacity: 0.7 }]}
+        onPress={handleNext}
+        disabled={loading}
+      >
         <Text style={styles.nextButtonText}>{loading ? "Please wait..." : "Sign Up"}</Text>
       </TouchableOpacity>
 
@@ -451,24 +480,24 @@ const Signupdetail = () => {
   );
 };
 
-export const  emailvalidation =( email) =>{
-  if(!email){
+export const emailvalidation = (email) => {
+  if (!email) {
     return "please enter your email"
   }
-  if(!emailRegex.test(email)){
+  if (!emailRegex.test(email)) {
     return "please enter your valid email"
-    
+
   }
   return '';
 
 };
 
-export const passwordValidation = (password)=>{
-  if(!password){
+export const passwordValidation = (password) => {
+  if (!password) {
     return "please enter your password"
-  
+
   }
-  if (!passwordRegex.test(password)){
+  if (!passwordRegex.test(password)) {
     return " At least 1 uppercase , 1 digit, mai 6 char"
   }
   return ''

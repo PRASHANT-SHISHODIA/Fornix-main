@@ -9,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   Animated,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
@@ -50,34 +51,47 @@ const Mood = () => {
   const subjectId = route?.params?.subjectId;
   const subjectName = route?.params?.subjectName;
   const Course = route?.params?.Course;
+  const mode = route.params?.mode;
+  const mockTestId = route.params?.testId;
   console.log('Via Mood Screen - Subject ID:', subjectId);
   console.log('Via Mood Screen - Subject Name:', subjectName);
   console.log('Via Mood Screen - Course:', Course);
   console.log('Via Mood Screen - From:', from);
+  console.log('Mode and MockTestId', mockTestId, mode)
 
-  // const handleStartQuiz = () => {
-  //   if (!selectedMood) {
-  //     console.log('Please select a mood first');
-  //     return;
-  //   }
-  //   console.log('Starting quiz with mood:', selectedMood);
-  //   console.log; ("from value:", from);
-  //   console.log('from type:', typeof from);
-  //   if (from && from.toString().trim() === 'qbanksubject') {
-  //     // ✅ Qbanksubject se aaye ho → new flow
-  //     navigation.navigate('Fornixqbank2', {
-  //       mood: selectedMood,
-  //       subjectId,
-  //       subjectName,
-  //     });
-  //   } else {
-  //     // ✅ Default / old flow
-  //     navigation.navigate('Qbanksubject', {
-  //       mood: selectedMood,
-  //     });
-  //   }
 
-  // };
+  const buildNavigationParams = () => {
+    let params = {
+      mood: selectedMood,
+    };
+
+    if (subjectId && subjectName && Course) {
+      return {
+        screen: 'Fornixqbank2',
+        params: {
+          ...params,
+          subjectId,
+          subjectName,
+          Course,
+          isAMC: true,
+        },
+      };
+    }
+
+    if (mode && mockTestId) {
+      return {
+        screen: 'Quizpage',
+        params: {
+          ...params,
+          mode,
+          testId: mockTestId,
+        },
+      };
+    }
+
+    return null;
+  };
+
 
 
 
@@ -212,19 +226,23 @@ const Mood = () => {
             style={styles.startButtonTouchable}
             onPress={() => {
               if (!selectedMood) {
-                console.log('Please select a mood first');
+                Alert.alert('Select Mood', 'Please select a mood first');
                 return;
               }
-              console.log('Starting quiz with mood:', selectedMood);
-              navigation.navigate('Fornixqbank2', {
-                mood: selectedMood,
-                subjectId,
-                subjectName,
-                isAMC: true,
-                Course,
-              });
-              // handleStartQuiz();
+
+              const navigationData = buildNavigationParams();
+
+              if (!navigationData) {
+                Alert.alert('Navigation Error', 'Invalid navigation data');
+                return;
+              }
+
+              navigation.navigate(
+                navigationData.screen,
+                navigationData.params
+              );
             }}
+
           >
             <Text style={styles.startButtonText}>
               {selectedMood ? 'Start Quiz' : 'Select a Mood to Start'}

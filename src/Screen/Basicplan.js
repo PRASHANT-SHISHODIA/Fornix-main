@@ -86,7 +86,7 @@ const BasicPlan = () => {
         title: 'PYTs',
         icon: 'file-alt',
         description: 'Previous year questions',
-        onPress: () => navigation.navigate('PYQs'),
+        onPress: () => navigation.navigate('PYTS'),
       }
       : {
 
@@ -109,7 +109,7 @@ const BasicPlan = () => {
       title: 'Analysis',
       icon: 'chart-bar',
       description: 'Performance analysis',
-      onPress: () => navigation.navigate('Analysis'),
+      onPress: () => navigation.navigate('AnalysisScreen'),
     },
     {
       id: '5',

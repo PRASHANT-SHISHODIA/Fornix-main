@@ -65,27 +65,28 @@ const Fornixqbank2 = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
-  const { mode, topicId, topicName = 'Anatomy', mood, chapterId, ChapterName,subjectId, Course } = route.params || {};
+  const { mode, testId, topicId, topicName = 'Anatomy', mood, chapterId, ChapterName, subjectId, Course } = route.params || {};
   const Difficult = mood?.title ?? null
   console.log("mood in quiz", Difficult)
   console.log("p", route.params)
   console.log("SUBJECT ID IN FORNIX QBANK2", subjectId)
   console.log("COURSE IN FORNIX QBANK2", Course)
+  console.log('mode and mocktestid', testId, mode)
 
 
   const getQuestionTypeFromMood = (moodTitle) => {
-  switch (moodTitle) {
-    case 'Funny / Easy':
-      return 'easy';
-    case 'Moderate':
-      return 'medium';
-    case 'Competitive':
-    case 'Difficult':
-      return 'hard';
-    default:
-      return 'easy';
-  }
-};
+    switch (moodTitle) {
+      case 'Funny / Easy':
+        return 'easy';
+      case 'Moderate':
+        return 'medium';
+      case 'Competitive':
+      case 'Difficult':
+        return 'hard';
+      default:
+        return 'easy';
+    }
+  };
 
 
   // 🔹 State variables
@@ -140,43 +141,7 @@ const Fornixqbank2 = () => {
     return () => animation?.stop();
   }, [loading]);
 
-  useEffect(() => {
-    let startListener;
-    let finishListener;
-    let cancelListener;
 
-    const initTts = async () => {
-      try {
-        await Tts.getInitStatus();
-        Tts.setDefaultLanguage('en-US');
-        Tts.setDefaultRate(0.5);
-        Tts.setDefaultPitch(1.0);
-
-        startListener = Tts.addEventListener('tts-start', () =>
-          setIsSpeaking(true),
-        );
-        finishListener = Tts.addEventListener('tts-finish', () =>
-          setIsSpeaking(false),
-        );
-        cancelListener = Tts.addEventListener('tts-cancel', () =>
-          setIsSpeaking(false),
-        );
-
-        console.log('TTS READY ✅');
-      } catch (err) {
-        console.log('TTS INIT ERROR ❌', err);
-      }
-    };
-
-    initTts();
-
-    return () => {
-      startListener?.remove();
-      finishListener?.remove();
-      cancelListener?.remove();
-      Tts.stop();
-    };
-  }, []);
 
   // 🔹 Handle hardware back button
   useEffect(() => {
@@ -187,54 +152,88 @@ const Fornixqbank2 = () => {
     return () => backHandler.remove();
   }, []);
 
+  const callMockTestStartApi = async () => {
+    if (!userId || !testId) {
+      console.log('❌ Missing userId or testId');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const url = `https://fornix-medical.vercel.app/api/v1/mobile/mock-tests/${testId}/start`;
+
+      const response = await axios.post(url, {
+        user_id: userId,
+      });
+
+      if (response?.data?.success) {
+        setAttemptId(response.data.attempt?.id);
+        setQuestions(response.data.questions || []);
+        setCurrentIndex(0);
+
+        console.log('✅ MOCK TEST STARTED');
+      } else {
+        Alert.alert('Error', 'Mock Test start failed');
+      }
+    } catch (error) {
+      console.log(
+        '❌ MOCK TEST API ERROR:',
+        error?.response?.data || error.message
+      );
+      Alert.alert('Error', 'Unable to start mock test');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const callSubjectQuizApi = async () => {
-  if (!userId || !subjectId || !mood) {
-    console.log('❌ Missing data for subject quiz');
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const questionType = getQuestionTypeFromMood(mood.title);
-
-    const body = {
-      user_id: userId,
-      subject_id: subjectId,
-      question_type: questionType,
-      limit: 20,
-    };
-
-    console.log('📤 SUBJECT QUIZ BODY:', body);
-
-    const response = await axios.post(
-      'https://fornix-medical.vercel.app/api/v1/subject-quiz/start',
-      body
-    );
-
-    if (response?.data?.success) {
-      setQuestions(response.data.data);
-      setAttemptId(response.data.attempt_id);
-      setCurrentIndex(0);
-
-      console.log('✅ SUBJECT QUIZ LOADED');
-      console.log('ATTEMPT:', response.data.attempt_id);
-      console.log('QUESTIONS:', response.data);
-    } else {
-      Alert.alert('Error', 'Subject quiz failed');
+    if (!userId || !subjectId || !mood) {
+      console.log('❌ Missing data for subject quiz');
+      return;
     }
-  } catch (error) {
-    console.log(
-      '❌ SUBJECT QUIZ ERROR:',
-      error?.response?.data || error.message
-    );
-    Alert.alert('Error', 'Unable to load subject quiz');
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      setLoading(true);
+
+      const questionType = getQuestionTypeFromMood(mood.title);
+
+      const body = {
+        user_id: userId,
+        subject_id: subjectId,
+        question_type: questionType,
+        limit: 20,
+      };
+
+      console.log('📤 SUBJECT QUIZ BODY:', body);
+
+      const response = await axios.post(
+        'https://fornix-medical.vercel.app/api/v1/subject-quiz/start',
+        body
+      );
+
+      if (response?.data?.success) {
+        setQuestions(response.data.data);
+        setAttemptId(response.data.attempt_id);
+        setCurrentIndex(0);
+
+        console.log('✅ SUBJECT QUIZ LOADED');
+        console.log('ATTEMPT:', response.data.attempt_id);
+        console.log('QUESTIONS:', response.data);
+      } else {
+        Alert.alert('Error', 'Subject quiz failed');
+      }
+    } catch (error) {
+      console.log(
+        '❌ SUBJECT QUIZ ERROR:',
+        error?.response?.data || error.message
+      );
+      Alert.alert('Error', 'Unable to load subject quiz');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   // 🔹 API Calls
@@ -308,17 +307,32 @@ const Fornixqbank2 = () => {
 
   useEffect(() => {
     if (!userId) return;
-    if(mood && subjectId){
+
+    // ✅ MOCK TEST FLOW
+    if (mode === 'MOCK_TEST' && testId) {
+      callMockTestStartApi();
+      return;
+    }
+
+    // ✅ SUBJECT (AMC) FLOW
+    if (mood && subjectId) {
       callSubjectQuizApi();
       return;
     }
+
+    // ✅ TOPIC FLOW
     if (mode === 'topic' && topicId) {
       callTopicQuizApi();
+      return;
     }
+
+    // ✅ DIRECT FLOW
     if (mode === 'DIRECT') {
       callDirectQuizApi();
     }
-  }, [userId, mode, topicId, mood, subjectId]);
+
+  }, [userId, mode, testId, topicId, mood, subjectId]);
+
 
   const handleHardwareBackPress = () => {
     stopTTS();
@@ -397,13 +411,13 @@ const Fornixqbank2 = () => {
   };
 
   const buildSubmitPayload = () => {
-    const {answers} = useQuizStore.getState();
-    console.log("ANSWER",answers)
+    const { answers } = useQuizStore.getState();
+    console.log("ANSWER", answers)
     return {
       user_id: userId,
       attempt_id: attempted,
       time_taken_seconds: getTimeTakenInSeconds(),
-      answers:answers,
+      answers: answers,
     };
   };
 
@@ -417,7 +431,7 @@ const Fornixqbank2 = () => {
   }
 
   const submitAMCQuiz = async () => {
-    try{
+    try {
       setSubmitting(true);
       startSubmitProgress();
       const payload = {
@@ -452,7 +466,7 @@ const Fornixqbank2 = () => {
   const SubmitQuiz = async () => {
 
     // const isAMC = subjectId === subjectId; // Replace with actual AMC subject ID
-    const {isAMC = false} = route.params || {};
+    const { isAMC = false } = route.params || {};
     if (isAMC) {
       await submitAMCQuiz();
       return;
@@ -492,7 +506,7 @@ const Fornixqbank2 = () => {
       outOf: '',
       attemptedId: data?.attempt_id,
       userId: userId,
-      
+
     })
   }
 
@@ -501,7 +515,7 @@ const Fornixqbank2 = () => {
     navigation.goBack();
   };
 
- 
+
   const handleNext = () => {
     if (!hasAnsweredCurrent.current) {
       Alert.alert('Answer Required', 'Please select an answer');
@@ -551,36 +565,8 @@ const Fornixqbank2 = () => {
     });
   };
 
-  const restartQuiz = () => {
-    setCurrentIndex(0);
-    setSelectedOption(null);
-    setShowExplanation(false);
-    setScore(0);
-    setUserAnswers([]);
-    hasAnsweredCurrent.current = false;
-  };
 
-  const handleAudioExplanation = async () => {
-    try {
-      if (isSpeaking) {
-        await Tts.stop();
-        setIsSpeaking(false);
-        return;
-      }
 
-      if (!currentQuestion?.explanation) {
-        Alert.alert('No Audio', 'Explanation not available');
-        return;
-      }
-
-      const textToSpeak = `${currentQuestion.explanation || ''
-        } The correct answer is ${currentQuestion.correct_answer.toUpperCase() || ''}`;
-      setIsSpeaking(true);
-      Tts.speak(textToSpeak);
-    } catch (error) {
-      console.log('TTS error:', error);
-    }
-  };
 
   // 🔹 Custom Loader Component
   const CustomLoader = () => {
@@ -800,6 +786,7 @@ const Fornixqbank2 = () => {
 
           {/* 🔹 Options */}
           <View style={styles.optionsContainer}>
+          
             {currentQuestion?.options?.map(option => (
               <TouchableOpacity
                 key={option.option_key}

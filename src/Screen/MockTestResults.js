@@ -31,41 +31,36 @@ const getResponsiveSize = (size) => {
   return size;
 };
 
-const Results = ({ route, navigation }) => {
+const MockTestResults = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const [showGift, setShowGift] = useState(true);
   const [giftAnimation] = useState(new Animated.Value(0));
   const [scaleAnimation] = useState(new Animated.Value(0.3));
 
-const isMockTest = score ==='mocktest'
+  const isMockTest = score === 'mocktest'
 
 
-  useEffect(() => {
-    console.log('RESULT DATA by mock test:', route.params);
-    console.log('TIME TAKEN:', route.params?.attemptedId);
 
-  }, []);
+  const rawResult = route.params?.result || {};
+  const attemptId = rawResult.attempt_id;
 
-  const rawResult = route.params?.resultData || {};
+  // const timeTaken = Number(route.params?.timeTaken) || 0;
+  const timeTaken = Number(rawResult.time_taken_seconds) || 0;
 
-  const timeTaken = Number(route.params?.timeTaken) || 0;
-
-  const totalQuestions = 
-    Number(rawResult.total_questions ?? rawResult.total) || 0;
-
-  const correctAnswers =
-    Number(rawResult.correct_answers ?? rawResult.correct) || 0;
-
-  const score =
-    Number(rawResult.score ?? correctAnswers) || 0;
-
-  const percentage =
-    totalQuestions > 0
-      ? Math.round((correctAnswers / totalQuestions) * 100)
-      : 0;
+  const totalQuestions = Number(rawResult.total_questions) || 0;
+  const correctAnswers = Number(rawResult.correct_answers) || 0;
+  const wrongAnswers = Number(rawResult.wrong_answers) || 0;
+  const unanswered = Number(rawResult.unanswered) || 0;
+  const score = Number(rawResult.score) || correctAnswers;
+  const percentage = Number(rawResult.percentage) || 0;
 
   const minutes = Math.floor(timeTaken / 60);
   const seconds = timeTaken % 60;
+
+  useEffect(() => {
+    console.log('FULL PARAMS:', route.params);
+    console.log('ATTEMPT ID:', attemptId);
+  }, []);
 
 
   const quizData = {
@@ -73,12 +68,14 @@ const isMockTest = score ==='mocktest'
     percentage,
     totalQuestions,
     correctAnswers,
-    rank: rawResult.rank || '-',
+    wrongAnswers,
+    unanswered,
     totalTime: `${minutes}m ${seconds}s`,
     avgTimePerQuestion:
       totalQuestions > 0 ? (timeTaken / totalQuestions).toFixed(1) : 0,
-    category: 'medical',
+    category: 'mocktest',
   };
+
 
 
   useEffect(() => {
@@ -274,7 +271,7 @@ const isMockTest = score ==='mocktest'
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar  barStyle='dark-content' />
+      <StatusBar barStyle='dark-content' />
 
       {/* Header with Back Button */}
       <View style={styles.header}>
@@ -292,7 +289,7 @@ const isMockTest = score ==='mocktest'
           styles.headerTitle,
           { fontSize: moderateScale(getResponsiveSize(20)) }
         ]}>
-          Quiz Results
+          MockTest Results
         </Text>
         <View style={styles.headerRight} />
       </View>
@@ -341,18 +338,20 @@ const isMockTest = score ==='mocktest'
             }
           ]}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('CheckAttempted',{
-            attemptedId: route.params?.attemptedId,
-            userId: route.params?.userId
+          onPress={() =>
+            navigation.navigate('CheckAttemptedTest', {
+              attemptId: attemptId,   // ✅ correct value
+              // userId: userId,
+              source: 'mocktest'
+            })
+          }
 
-      
-          })}
         >
           <Text style={[
             styles.buttonText,
             { fontSize: moderateScale(getResponsiveSize(16)) }
           ]}>
-            Check Attempted Quiz
+            Check Attempted Mock
           </Text>
           <Icon
             name="arrow-right"
@@ -709,4 +708,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Results;
+export default MockTestResults

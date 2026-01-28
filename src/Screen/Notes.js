@@ -6,37 +6,30 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  Linking,
   Alert,
   ActivityIndicator,
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import FlagSecure from 'react-native-flag-secure';
+
 
 const { width, height } = Dimensions.get('window');
 
-// 🔹 Scale functions
+// 🔹 Scale functions (UI ke liye needed)
 const scale = size => (width / 375) * size;
 const verticalScale = size => (height / 812) * size;
 const moderateScale = (size, factor = 0.5) =>
   size + (scale(size) - size) * factor;
 
-// 🔹 Responsive size function
-const getResponsiveSize = (size) => {
-  if (width < 375) return size * 0.85;
-  if (width > 414) return size * 1.15;
-  return size;
-};
-
 const Notes = () => {
   const navigation = useNavigation();
-  const route = useRoute();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -44,175 +37,155 @@ const Notes = () => {
   const [courseName, setCourseName] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
 
-  // 🔹 Load selected course and fetch notes
+  // 🔹 Load course + notes
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load course data from AsyncStorage
-        const courseData = await AsyncStorage.getItem('selectedCourse');
-        if (courseData) {
-          const parsed = JSON.parse(courseData);
-          setCourseName(parsed.courseName || '');
-          setSelectedCourseId(parsed.id);
-
-          // Fetch notes for the course
-          await fetchNotes(parsed.id);
-        } else {
-          Alert.alert('Error', 'No course selected');
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        Alert.alert('Error', 'Failed to load course data');
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, []);
 
-  // 🔹 API call to fetch notes - FIXED VERSION
-  const fetchNotes = async (courseId) => {
-    setLoading(true);
-    try {
-      // Using axios with POST request and body
-      const response = await axios.post(
-        'https://fornix-medical.vercel.app/api/v1/notes',
-        {
-          course_id: courseId || "cc613b33-3986-4d67-b33a-009b57a72dc8"
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+  useEffect(() => {
+  FlagSecure.activate(); // 🔒 enable security
 
-      const data = response.data;
-
-      if (data.success) {
-        setNotes(data.data || []);
-      } else {
-        Alert.alert('Error', 'Failed to fetch notes');
-        setNotes([]);
-      }
-    } catch (error) {
-      console.error('API Error:', error);
-      console.error('Error details:', error.response?.data || error.message);
-
-      // Try fallback with fetch if axios fails
-      try {
-        console.log('Trying fallback with fetch...');
-        await fetchNotesWithFetch(courseId);
-      } catch (fetchError) {
-        Alert.alert('Error', 'Network error. Please try again.');
-        setNotes([]);
-      }
-    } finally {
-      setLoading(false);
-    }
+  return () => {
+    FlagSecure.deactivate(); // ❌ disable on leave
   };
+}, []);
 
-  // 🔹 Alternative: Using fetch API
-  const fetchNotesWithFetch = async (courseId) => {
-    try {
-      const response = await fetch('https://fornix-medical.vercel.app/api/v1/notes', {
-        method: 'POST',
+
+  const loadData = async () => {
+  try {
+    const courseData = await AsyncStorage.getItem('selectedCourse');
+
+    console.log('Raw AsyncStorage:', courseData);
+
+    if (!courseData) {
+      Alert.alert('Error', 'No course selected');
+      setLoading(false);
+      return;
+    }
+
+    const parsed = JSON.parse(courseData);
+
+    console.log('Parsed Course:', parsed);
+
+    // ✅ FIX HERE
+    setCourseName(parsed.courseName || '');
+    setSelectedCourseId(parsed.courseId); // ✅ correct key
+
+    fetchNotes(parsed.courseId); // ✅ correct
+  } catch (e) {
+    console.log('LoadData Error:', e);
+    Alert.alert('Error', 'Failed to load course data');
+    setLoading(false);
+  }
+};
+
+  const fetchNotes = async (
+  courseId,
+  subjectId = '',
+  noteType = 'sample'
+) => {
+  if (!courseId) {
+    console.log('❌ Course ID missing');
+    setLoading(false);
+    return;
+  }
+
+  console.log('📤 Notes API Body:', {
+    course_id: courseId,
+    subject_id: subjectId,
+    note_type: noteType,
+  });
+
+  setLoading(true);
+  try {
+    const response = await axios.post(
+      'https://fornix-medical.vercel.app/api/v1/notes',
+      {
+        course_id: courseId,
+        subject_id: subjectId || '',
+        note_type: noteType || 'sample',
+      },
+      {
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          course_id: courseId,
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
       }
+    );
 
-      const data = await response.json();
+    console.log('📥 Notes API Response:', response.data);
 
-      if (data.success) {
-        setNotes(data.data || []);
-      } else {
-        throw new Error('API returned failure');
-      }
-    } catch (error) {
-      console.error('Fetch Error:', error);
-      throw error;
-    }
-  };
-
-  // 🔹 Refresh notes
-  const handleRefresh = async () => {
-    if (selectedCourseId) {
-      await fetchNotes(selectedCourseId);
+    if (response.data?.success) {
+      setNotes(response.data.data || []);
     } else {
-      // If no course ID, use the hardcoded one for testing
-      await fetchNotes("cc613b33-3986-4d67-b33a-009b57a72dc8");
+      setNotes([]);
     }
+  } catch (error) {
+    console.log('❌ Notes API Error:', error?.response || error);
+    Alert.alert('Error', 'Unable to fetch notes');
+    setNotes([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // 🔹 PDF open
+  const handleOpenPDF = pdfUrl => {
+    if (!pdfUrl) {
+      Alert.alert('Error', 'PDF URL not found');
+      return;
+    }
+    navigation.navigate('PdfViewer', { pdfUrl });
   };
 
-  // Format date
-  const formatDate = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
-
-  // Handle PDF open
-  const handleOpenPDF = async (pdfUrl) => {
-    try {
-      if (!pdfUrl) {
-        Alert.alert('Error', 'PDF URL not found');
-        return;
-      }
-
-      const encodedUrl = encodeURI(pdfUrl);
-      await Linking.openURL(encodedUrl);
-
-    } catch (error) {
-      Alert.alert(
-        'PDF Error',
-        'Unable to open PDF. Please install a PDF viewer.'
-      );
-    }
+  const formatDate = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
 
-  // Render each note item
   const renderNoteItem = ({ item }) => (
     <TouchableOpacity
       style={styles.noteCard}
-      onPress={() => handleOpenPDF(item.pdf_url, item.title)}>
+      onPress={() => handleOpenPDF(item.pdf_url)}
+    >
       <View style={styles.noteContent}>
         <View style={styles.noteIcon}>
           <Icon name="file-pdf" size={moderateScale(22)} color="#E53935" />
         </View>
+
         <View style={styles.noteInfo}>
           <Text style={styles.noteTitle} numberOfLines={2}>
             {item.title || 'Untitled Note'}
           </Text>
+
+          <Text style={styles.noteDate}>
+            {item.subject?.name || 'No Subject'} • {item.note_type}
+          </Text>
+
           <Text style={styles.noteDate}>
             {formatDate(item.created_at)}
           </Text>
         </View>
-        <Icon name="external-link-alt" size={moderateScale(16)} color="#1A3848" />
+
+        <Icon
+          name="external-link-alt"
+          size={moderateScale(16)}
+          color="#1A3848"
+        />
       </View>
     </TouchableOpacity>
   );
 
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar  barStyle='dark-content'/>
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -221,104 +194,39 @@ const Notes = () => {
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}>
-              <Icon1
-                name="arrow-back"
-                size={moderateScale(28)}
-                color="#FFFFFF"
-              />
+              <Icon1 name="arrow-back" size={moderateScale(28)} color="#FFF" />
             </TouchableOpacity>
             <Text style={styles.title}>Notes</Text>
-
-            {/* Refresh Button */}
             <TouchableOpacity
-              onPress={handleRefresh}
-              style={styles.refreshButton}
-              disabled={loading}>
-              <Icon1
-                name="refresh"
-                size={moderateScale(22)}
-                color="#FFFFFF"
-              />
+              onPress={() => fetchNotes(selectedCourseId)}
+              disabled={loading}
+              style={styles.refreshButton}>
+              <Icon1 name="refresh" size={moderateScale(22)} color="#FFF" />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-
-        {/* Course Name */}
-        {courseName ? (
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {courseName && (
           <View style={styles.courseContainer}>
-            <Text style={styles.courseName}>{courseName}</Text>
-            <Text style={styles.courseId}>
-              Course ID: {selectedCourseId || 'Not available'}
-            </Text>
           </View>
-        ) : null}
+        )}
 
-        {/* Debug Info - Remove in production */}
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>
-            API: https://fornix-medical.vercel.app/api/v1/notes
-          </Text>
-          <Text style={styles.debugText}>
-            Method: POST with course_id in body
-          </Text>
-        </View>
-
-        {/* Loading State */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#F87F16" />
-            <Text style={styles.loadingText}>Loading notes...</Text>
           </View>
         ) : notes.length > 0 ? (
-          <View style={styles.notesContainer}>
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalNotes}>
-                Total Notes: {notes.length}
-              </Text>
-            </View>
-
-            <FlatList
-              data={notes}
-              renderItem={renderNoteItem}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContainer}
-            />
-          </View>
+          <FlatList
+            data={notes}
+            renderItem={renderNoteItem}
+            keyExtractor={(item, index) => String(item.id ?? index)}
+            scrollEnabled={false}
+          />
         ) : (
           <View style={styles.emptyContainer}>
-            <Icon name="sticky-note" size={moderateScale(60)} color="#CCCCCC" />
             <Text style={styles.emptyText}>No notes available</Text>
-            <Text style={styles.emptySubText}>
-              {selectedCourseId
-                ? 'No notes found for this course'
-                : 'Select a course to view notes'}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRefresh}>
-              <Text style={styles.retryButtonText}>
-                {loading ? 'Loading...' : 'Retry'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Test Button with hardcoded ID */}
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: '#1A3848', marginTop: 10 }]}
-              onPress={() => fetchNotes("cc613b33-3986-4d67-b33a-009b57a72dc8")}>
-              <Text style={styles.retryButtonText}>
-                Test with Sample ID
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -326,11 +234,9 @@ const Notes = () => {
   );
 };
 
+export default Notes;
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
   header: {
     backgroundColor: '#F87F16',
     marginBottom: verticalScale(20),
@@ -351,9 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  backButton: {
-    padding: scale(8),
-  },
+  backButton: { padding: scale(8) },
   title: {
     fontSize: moderateScale(24),
     fontFamily: 'Poppins-SemiBold',
@@ -362,16 +266,9 @@ const styles = StyleSheet.create({
     flex: 1,
     includeFontPadding: false,
   },
-  refreshButton: {
-    padding: scale(8),
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: verticalScale(20),
-  },
+  refreshButton: { padding: scale(8) },
+  scrollView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingBottom: verticalScale(20) },
   courseContainer: {
     paddingHorizontal: scale(20),
     marginBottom: verticalScale(20),
@@ -407,12 +304,8 @@ const styles = StyleSheet.create({
     color: '#666',
     includeFontPadding: false,
   },
-  notesContainer: {
-    paddingHorizontal: scale(20),
-  },
-  totalContainer: {
-    marginBottom: verticalScale(20),
-  },
+  notesContainer: { paddingHorizontal: scale(20) },
+  totalContainer: { marginBottom: verticalScale(20) },
   totalNotes: {
     fontSize: moderateScale(16),
     fontFamily: 'Poppins-SemiBold',
@@ -420,9 +313,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
   },
-  listContainer: {
-    paddingBottom: verticalScale(20),
-  },
+  listContainer: { paddingBottom: verticalScale(20) },
   noteCard: {
     backgroundColor: 'white',
     borderRadius: moderateScale(12),
@@ -434,16 +325,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  noteContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  noteIcon: {
-    marginRight: scale(12),
-  },
-  noteInfo: {
-    flex: 1,
-  },
+  noteContent: { flexDirection: 'row', alignItems: 'center' },
+  noteIcon: { marginRight: scale(12) },
+  noteInfo: { flex: 1 },
   noteTitle: {
     fontSize: moderateScale(16),
     fontFamily: 'Poppins-SemiBold',
@@ -507,5 +391,3 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 });
-
-export default Notes;

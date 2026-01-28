@@ -1,5 +1,5 @@
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {NavigationContainer} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
 import Signup from '../Screen/Signup';
 import Signupdetail from '../Screen/Signupdetail';
 import LoginDetail from '../Screen/Logindetail';
@@ -27,6 +27,20 @@ import History from '../Screen/History'
 import CheckAttempted from '../Screen/CheckAttempted';
 import CourseChoose from '../Screen/CourseChoose';
 import Notes from '../Screen/Notes';
+import PdfViewer from '../Screen/PdfViewer';
+import AnalysisScreen from '../Screen/AnalysisScreen';
+import SmartTracking from '../Screen/SmartTracking';
+import CCDPodcast from '../Screen/CCDPodcast';
+import MockTest from '../Screen/MockTest';
+import PYTS from '../Screen/PYTS';
+import PYTsTopicScreen from '../Screen/PYTsTopicScreen';
+import SubjectPodcasts from '../Screen/SubjectPodcasts';
+import BasicPlan from '../Screen/Basicplan';
+import TestAndDiscussion from '../Screen/TestAndDiscussion';
+import DiscussionDetails from '../Screen/DiscussionDetails';
+import MockTestResults from '../Screen/MockTestResults';
+import CheckAttemptedTest from '../Screen/CheckAttemptedTest';
+import AiBot from '../Screen/AiBot';
 
 
 
@@ -40,133 +54,202 @@ function RootNavigation() {
         <Stack.Screen
           name="Signup"
           component={Signup}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Signupdetail"
           component={Signupdetail}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Logindetail"
           component={LoginDetail}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-          <Stack.Screen
+        <Stack.Screen
           name="Diversionscreen"
           component={Diversionscreen}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="TabNavigation"
           component={TabNavigation}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Qbanksubject"
           component={Qbanksubject}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Subjectdetail"
           component={Subjectdetail}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Topicwise"
           component={Topicwise}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-       <Stack.Screen
+        <Stack.Screen
           name="Chapterwise"
           component={Chapterwise}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Fornixqbank1"
           component={Fornixqbank1}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Fornixqbank2"
           component={Fornixqbank2}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Mood"
           component={Mood}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Quizmain"
           component={QuizMain}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="Quizpage"
           component={Quizpage}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Topiclist"
           component={Topiclist}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
-          <Stack.Screen
+        <Stack.Screen
           name="Home"
           component={Home}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Editprofile"
           component={Editprofile}
-          options={{headerShown: false}}
-        />
-         <Stack.Screen
-          name="Selected"
-          component={Selected}
-          options={{headerShown: false}}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
-        name='Course'
-        component={Course}
-        options={{headerShown:false}}/>
-        <Stack.Screen 
-        name='Review'
-        component={Review}
-        options={{headerShown:false}}
+          name="Selected"
+          component={Selected}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen 
-        name='Successful'
-        component={Successful}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='Course'
+          component={Course}
+          options={{ headerShown: false }} />
+        <Stack.Screen
+          name='Review'
+          component={Review}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen 
-        name='Results'
-        component={Results}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='Successful'
+          component={Successful}
+          options={{ headerShown: false }}
         />
-        <Stack.Screen 
-        name='History'
-        component={History}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='Results'
+          component={Results}
+          options={{ headerShown: false }}
         />
-        <Stack.Screen 
-        name='CheckAttempted'
-        component={CheckAttempted}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='History'
+          component={History}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen 
-        name='CourseChoose'
-        component={CourseChoose}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='CheckAttempted'
+          component={CheckAttempted}
+          options={{ headerShown: false }}
         />
-         <Stack.Screen 
-        name='Notes'
-        component={Notes}
-        options={{headerShown:false}}
+        <Stack.Screen
+          name='CourseChoose'
+          component={CourseChoose}
+          options={{ headerShown: false }}
         />
-
+        <Stack.Screen
+          name='Notes'
+          component={Notes}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='PdfViewer'
+          component={PdfViewer}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='AnalysisScreen'
+          component={AnalysisScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='SmartTracking'
+          component={SmartTracking}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='CCDPodcast'
+          component={CCDPodcast}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='MockTest'
+          component={MockTest}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='PYTS'
+          component={PYTS}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='PYTsTopicScreen'
+          component={PYTsTopicScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='SubjectPodcasts'
+          component={SubjectPodcasts}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='BasicPlan'
+          component={BasicPlan}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='TestAndDiscussion'
+          component={TestAndDiscussion}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='DiscussionDetails'
+          component={DiscussionDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='MockTestResults'
+          component={MockTestResults}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name='CheckAttemptedTest'
+          component={CheckAttemptedTest}
+          options={{ headerShown: false }}
+        />
+         <Stack.Screen
+          name='AiBot'
+          component={AiBot}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

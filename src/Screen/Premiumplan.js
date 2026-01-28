@@ -72,7 +72,7 @@ const PremiumPlan = () => {
       title: 'AI Bot',
       icon: 'robot',
       description: 'Take mock tests',
-      onPress: () => navigation.navigate('MockTest'),
+      onPress: () => navigation.navigate('AiBot'),
     },
     {
       id: '4',
