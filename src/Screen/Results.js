@@ -189,7 +189,7 @@ const isMockTest = score ==='mocktest'
       }
     ]}>
       {/* Rank Correct */}
-      <View style={styles.statItem}>
+      {/* <View style={styles.statItem}>
         <Text style={[
           styles.statNumber,
           { fontSize: moderateScale(getResponsiveSize(32)) }
@@ -202,7 +202,7 @@ const isMockTest = score ==='mocktest'
         ]}>
           Rank Correct
         </Text>
-      </View>
+      </View> */}
 
       {/* Vertical Divider */}
       <View style={[
@@ -280,7 +280,7 @@ const isMockTest = score ==='mocktest'
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
         >
           <Icon
             name="arrow-left"
@@ -311,7 +311,7 @@ const isMockTest = score ==='mocktest'
             styles.congratsText,
             { fontSize: moderateScale(getResponsiveSize(24)) }
           ]}>
-            Great Job!
+            Thank You 
           </Text>
           <Text style={[
             styles.subCongratsText,

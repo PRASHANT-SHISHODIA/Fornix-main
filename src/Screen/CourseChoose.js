@@ -36,59 +36,60 @@ const CourseChoose = () => {
   /* ---------- State ---------- */
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedCourseForPlan, setSelectedCourseForPlan] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  
+
   const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
-  
+
   const [courseFeatures, setCourseFeatures] = useState([]);
   const [loadingFeatures, setLoadingFeatures] = useState(false);
-  
+
   const [userData, setUserData] = useState(null);
 
-  
-const loadUserData = async () => {
-  try {
-    const data = await AsyncStorage.getItem('user_data');
 
-    if (!data) {
-      console.log('❌ No user_data found');
-      return;
+  const loadUserData = async () => {
+    try {
+      const data = await AsyncStorage.getItem('user_data');
+
+      if (!data) {
+        console.log('❌ No user_data found');
+        return;
+      }
+
+      const parsed = JSON.parse(data);
+      console.log('✅ Loaded user_data:', parsed);
+
+      setUserData(parsed);
+    } catch (e) {
+      console.log('User data load error:', e);
     }
-
-    const parsed = JSON.parse(data);
-    console.log('✅ Loaded user_data:', parsed);
-
-    setUserData(parsed);
-  } catch (e) {
-    console.log('User data load error:', e);
-  }
-};
+  };
 
 
 
-useEffect(() => {
-  console.log('👤 userData in CourseChoose:', userData);
-}, [userData]);
+  useEffect(() => {
+    console.log('👤 userData in CourseChoose:', userData);
+    console.log('repone futer', courseFeatures)
+  }, [userData, courseFeatures]);
 
 
 
 
-const getUserIdFromUserData = async () => {
-  const data = await AsyncStorage.getItem('user_data');
-  if (!data) return null;
-  console.log("Data",data)
+  const getUserIdFromUserData = async () => {
+    const data = await AsyncStorage.getItem('user_data');
+    if (!data) return null;
+    console.log("Data", data)
 
-  const user = JSON.parse(data);
-  return user.id; // 👈 YAHI user_id HAI
+    const user = JSON.parse(data);
+    return user.id; // 👈 YAHI user_id HAI
 
-};
+  };
 
-  
+
 
   /* ---------- Fetch courses ---------- */
   const fetchCourses = useCallback(async () => {
@@ -116,9 +117,10 @@ const getUserIdFromUserData = async () => {
       const res = await axios.post(`${API_BASE}/course-features`, {
         course_id: courseId
       });
-      
+
       if (res.data?.success) {
-        setCourseFeatures(res.data.data || []);
+        setCourseFeatures(res.data?.feature_list || []);
+        console.log("respone of futeres", res.data)
       } else {
         setCourseFeatures([]);
       }
@@ -134,7 +136,7 @@ const getUserIdFromUserData = async () => {
   const handleCourseSelect = async (course) => {
     setSelectedCourse(course.id);
     setSelectedCourseForPlan(course);
-    
+
     // Pehle features fetch karo aur modal dikhao
     await fetchCourseFeatures(course.id);
     setShowFeaturesModal(true);
@@ -143,7 +145,7 @@ const getUserIdFromUserData = async () => {
   /* ---------- Features modal se aage badho ---------- */
   const handleFeaturesModalProceed = useCallback(() => {
     setShowFeaturesModal(false);
-    
+
     // Check if course has plans
     if (selectedCourseForPlan?.plans?.length > 0) {
       setSelectedPlan(null);
@@ -166,7 +168,7 @@ const getUserIdFromUserData = async () => {
 
   /* ---------- Payment and Enrollment ---------- */
   const enrollUser = async (paymentData, plan) => {
-    console.log("payment data",paymentData,plan,userData.id,selectedCourseForPlan)
+    console.log("payment data", paymentData, plan, userData.id, selectedCourseForPlan)
     const payload = {
       user_id: userData.id,
       course_id: selectedCourseForPlan.id,
@@ -179,78 +181,70 @@ const getUserIdFromUserData = async () => {
       payment_date: new Date().toISOString(),
       start_date: new Date().toISOString(),
     };
-    console.log('Payload',payload)
+    console.log('Payload', payload)
 
     const res = await axios.post(`${API_BASE}/enroll`, payload);
-    
+
     return res.data?.success;
   };
 
   const startRazorpayPayment = async () => {
-  if (!selectedPlan) {
-    Alert.alert('Select Plan', 'Please select a plan first');
-    return;
-  }
+    if (!selectedPlan) {
+      Alert.alert('Select Plan', 'Please select a plan first');
+      return;
+    }
 
-  setProcessingPayment(true);
+    setProcessingPayment(true);
 
-  const options = {
-    key: RAZORPAY_KEY,
-    amount: Number(selectedPlan.price) * 100, // VERY IMPORTANT
-    currency: 'INR',
-    name: 'Fornix Medical',
-    description: `${selectedCourseForPlan.name} - ${selectedPlan.name}`,
-    prefill: {
-      email: userData?.email || 'test@gmail.com',
-      contact: userData?.phone || '9999999999',
-      name: userData?.name || 'User',
-    },
-    theme: { color: '#F87F16' },
+    const options = {
+      key: RAZORPAY_KEY,
+      amount: Number(selectedPlan.price) * 100, // VERY IMPORTANT
+      currency: 'INR',
+      name: 'Fornix Medical',
+      description: `${selectedCourseForPlan.name} - ${selectedPlan.name}`,
+      prefill: {
+        email: userData?.email || 'test@gmail.com',
+        contact: userData?.phone || '9999999999',
+        name: userData?.name || 'User',
+      },
+      theme: { color: '#F87F16' },
+    };
+
+    try {
+      const paymentData = await RazorpayCheckout.open(options);
+      console.log('Payment Success:', paymentData);
+
+      await handlePaymentSuccess(paymentData);
+    } catch (error) {
+      console.log('Payment Failed:', error);
+      Alert.alert('Payment Cancelled', 'Payment was not completed');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      const enrolled = await enrollUser(paymentData, selectedPlan);
+      console.log('Enrollment Response:', enrolled);
+
+      await saveCourseSelection(selectedCourseForPlan, selectedPlan);
+
+      Alert.alert('Success', 'Enrollment successful 🎉', [
+        {
+          text: 'OK',
+          onPress: () => navigation.replace('TabNavigation'),
+        },
+      ]);
+    } catch (error) {
+      console.log('Post Payment Error:', error);
+      Alert.alert(
+        'Error',
+        'Payment was successful but something went wrong. Contact support.'
+      );
+    }
   };
 
-  try {
-    const paymentData = await RazorpayCheckout.open(options);
-    console.log('Payment Success:', paymentData);
 
-    await handlePaymentSuccess(paymentData);
-  } catch (error) {
-    console.log('Payment Failed:', error);
-    Alert.alert('Payment Cancelled', 'Payment was not completed');
-  } finally {
-    setProcessingPayment(false);
-  }
-};
-const handlePaymentSuccess = async (paymentData) => {
-  try {
-    const enrolled = await enrollUser(paymentData, selectedPlan);
-    console.log('Enrollment Response:', enrolled);
-
-    // if (!enrolled) {
-    //   Alert.alert(
-    //     'Payment Done',
-    //     'Payment successful but enrollment failed. Please contact support.'
-    //   );
-    //   return;
-    // }
-
-    await saveCourseSelection(selectedCourseForPlan, selectedPlan);
-
-    Alert.alert('Success', 'Enrollment successful 🎉', [
-      {
-        text: 'OK',
-        onPress: () => navigation.replace('TabNavigation'),
-      },
-    ]);
-  } catch (error) {
-    console.log('Post Payment Error:', error);
-    Alert.alert(
-      'Error',
-      'Payment was successful but something went wrong. Contact support.'
-    );
-  }
-};
-
-  
 
   const handlePlanSelect = useCallback((plan) => {
     setSelectedPlan(plan);
@@ -259,13 +253,13 @@ const handlePaymentSuccess = async (paymentData) => {
   const handleProceedWithoutPlan = useCallback(() => {
     saveCourseSelection(selectedCourseForPlan, null);
     setShowPlanModal(false);
-    
+
     navigation.navigate('TabNavigation', {
       courseId: selectedCourseForPlan.id,
       courseName: selectedCourseForPlan.name,
       paymentStatus: 'not_required',
     });
-  }, [ selectedCourseForPlan]);
+  }, [selectedCourseForPlan]);
 
   /* ---------- Save selection ---------- */
   const saveCourseSelection = async (course, plan) => {
@@ -288,30 +282,63 @@ const handlePaymentSuccess = async (paymentData) => {
   };
 
   /* ---------- Render Course Feature Item ---------- */
+  // const renderFeatureItem = ({ item, index }) => (
+  //   <View style={styles.featureItem}>
+  //     <View style={styles.featureIconContainer}>
+  //       <Text style={styles.featureNumber}>{index + 1}</Text>
+  //     </View>
+  //     <View style={styles.featureContent}>
+  //       <Text style={styles.featureTitle}>{item.title || `Feature ${index + 1}`}</Text>
+  //       <Text style={styles.featureDescription}>
+  //         {item.description || 'No description available'}
+  //       </Text>
+
+  //       {item.sub_features && item.sub_features.length > 0 && (
+  //         <View style={styles.subFeaturesContainer}>
+  //           {item.sub_features.map((sub, subIndex) => (
+  //             <View key={subIndex} style={styles.subFeature}>
+  //               <Icon1 name="chevron-forward" size={14} color="#F87F16" />
+  //               <Text style={styles.subFeatureText}>{sub}</Text>
+  //             </View>
+  //           ))}
+  //         </View>
+  //       )}
+  //     </View>
+  //   </View>
+  // );
   const renderFeatureItem = ({ item, index }) => (
     <View style={styles.featureItem}>
       <View style={styles.featureIconContainer}>
-        <Text style={styles.featureNumber}>{index + 1}</Text>
+        <Icon1
+          name={item.enabled ? 'checkmark-circle' : 'close-circle'}
+          size={20}
+          color={item.enabled ? '#27AE60' : '#E74C3C'}
+        />
       </View>
+
       <View style={styles.featureContent}>
-        <Text style={styles.featureTitle}>{item.title || `Feature ${index + 1}`}</Text>
-        <Text style={styles.featureDescription}>
-          {item.description || 'No description available'}
+        <Text style={styles.featureTitle}>
+          {item.label}
         </Text>
-        
-        {item.sub_features && item.sub_features.length > 0 && (
-          <View style={styles.subFeaturesContainer}>
-            {item.sub_features.map((sub, subIndex) => (
-              <View key={subIndex} style={styles.subFeature}>
-                <Icon1 name="chevron-forward" size={14} color="#F87F16" />
-                <Text style={styles.subFeatureText}>{sub}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+
+        <Text style={styles.featureDescription}>
+          Feature Key: {item.key}
+        </Text>
+
+        <Text
+          style={{
+            marginTop: 4,
+            fontSize: 12,
+            fontWeight: '600',
+            color: item.enabled ? '#27AE60' : '#E74C3C',
+          }}
+        >
+          {item.enabled ? 'Enabled' : 'Not Available'}
+        </Text>
       </View>
     </View>
   );
+
 
   /* ---------- Features Modal Component ---------- */
   const FeaturesModal = () => (
@@ -324,10 +351,13 @@ const handlePaymentSuccess = async (paymentData) => {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <View>
+
+            <View style={{ justifyContent:'center',alignContent:'center',alignItems:'center',alignSelf:'center',left:'50%' }}>
               <Text style={styles.modalTitle}>
                 {selectedCourseForPlan?.name} Features
               </Text>
+            </View>
+            <View style={{marginTop:40,}}>
               <Text style={styles.modalSubtitle}>
                 Explore what you'll learn in this course
               </Text>
@@ -375,8 +405,8 @@ const handlePaymentSuccess = async (paymentData) => {
               onPress={handleFeaturesModalProceed}
             >
               <Text style={styles.proceedFeaturesText}>
-                {selectedCourseForPlan?.plans?.length > 0 
-                  ? 'View Plans & Pricing' 
+                {selectedCourseForPlan?.plans?.length > 0
+                  ? 'View Plans & Pricing'
                   : 'Continue Free Access'}
               </Text>
               <Icon1 name="arrow-forward" size={18} color="#FFF" />
@@ -397,8 +427,8 @@ const handlePaymentSuccess = async (paymentData) => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+          <View style={styles.modalHeaderpay}>
+            <Text style={styles.modalTitlepay}>
               Select Plan for {selectedCourseForPlan?.name}
             </Text>
             {!processingPayment && (
@@ -914,22 +944,47 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    // marginBottom:20,
+  }, 
+  modalHeaderpay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    alignContent:'center',
+    // marginBottom:20,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1F3A4D',
     flex: 1,
+    alignSelf: 'center',
+    position: 'absolute',
+  },
+   modalTitlepay: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F3A4D',
+    flex: 1,
+    alignSelf: 'center',
+    position: 'absolute',
+    justifyContent:'center',
+    textAlign:'center',
+    alignContent:'center',
+  left:'35%'
   },
   modalSubtitle: {
     fontSize: 14,
     color: '#7F8C8D',
-    marginTop: 2,
+    // marginTop: 10,
   },
   closeButton: {
     padding: 5,
   },
-  
+
   /* ---------- Features Modal Styles ---------- */
   loadingContainer: {
     padding: 40,
@@ -1044,7 +1099,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginRight: 6,
   },
-  
+
   /* ---------- Plan Modal Styles ---------- */
   plansList: {
     paddingHorizontal: 20,

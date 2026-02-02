@@ -55,7 +55,7 @@ const TabNavigatorContent = () => {
         }}
       />
       <TabNav.Screen
-        name="Basic Plan"
+        name="My Plan"
         component={Basicplan}
         options={{
           tabBarIcon: ({focused}) => (
@@ -67,7 +67,7 @@ const TabNavigatorContent = () => {
           ),
         }}
       />
-      <TabNav.Screen
+      {/* <TabNav.Screen
         name="Premium"
         component={Premiumplan}
         options={{
@@ -79,8 +79,8 @@ const TabNavigatorContent = () => {
             />
           ),
         }}
-      />
-      <TabNav.Screen
+      /> */}
+      {/* <TabNav.Screen
         name="AI"
         component={AIscreen}
         initialParams={{ selectedCountry: null }}
@@ -93,7 +93,7 @@ const TabNavigatorContent = () => {
             />
           ),
         }}
-      />
+      /> */}
       <TabNav.Screen
         name="Profile"
         component={Profile}

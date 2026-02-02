@@ -13,6 +13,7 @@ import {
   Image,
   Animated,
   ActivityIndicator,
+  Modal
 } from 'react-native';
 // import { useQuizStore } from '../API/store/useQuizStore';
 import useQuizStore from '../store/useQuizStore';
@@ -111,6 +112,13 @@ const Fornixqbank2 = () => {
   const saveAnswer = useQuizStore((state) => state.saveAnswer);
   const getAnswer = useQuizStore((state) => state.getAnswer);
   // const route = useRoute()
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const timerRef = useRef(null);
+  const [submitPercent, setSubmitPercent] = useState(0);
+
+
 
   console.log("USER ID ", userId)
   // Track if user has answered current question
@@ -185,6 +193,33 @@ const Fornixqbank2 = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    hasAnsweredCurrent.current = false;
+    setSelectedOption(null);
+    setShowExplanation(false);
+  }, [currentIndex]);
+
+
+  const getAttemptedCount = () => {
+    const { answers } = useQuizStore.getState();
+    return Object.keys(answers || {}).length;
+  };
+
+  const getSkippedCount = () => {
+    return questions.length - getAttemptedCount();
+  };
+
+
+  const handleSaveLastQuestion = () => {
+    const currentQuestion = questions[currentIndex];
+
+    // save last answer
+    saveAnswer(currentQuestion.id, selectedOption);
+
+    setIsSaved(true);
+    setShowSummaryModal(true);
   };
 
 
@@ -333,6 +368,62 @@ const Fornixqbank2 = () => {
 
   }, [userId, mode, testId, topicId, mood, subjectId]);
 
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+
+  useEffect(() => {
+    if (!questions.length) return;
+
+    // ⏱ 1 question = 1 minute
+    const totalSeconds = questions.length * 60;
+    setTimeLeft(totalSeconds);
+
+    // Clear old timer if any
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          onTimeFinished(); // 🔥 AUTO SUBMIT
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [questions]);
+
+
+  const onTimeFinished = () => {
+    Alert.alert(
+      'Time Finished ⏰',
+      'Your time is finished. Your quiz will be submitted automatically.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            SubmitQuiz(); // 🔥 Auto submit
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+
+
 
   const handleHardwareBackPress = () => {
     stopTTS();
@@ -421,14 +512,34 @@ const Fornixqbank2 = () => {
     };
   };
 
+  // const startSubmitProgress = () => {
+  //   submitProgress.setValue(0);
+  //   Animated.timing(submitProgress, {
+  //     toValue: 1,
+  //     duration: 1800,
+  //     useNativeDriver: false,
+  //   }).start();
+  // }
+  
+
   const startSubmitProgress = () => {
     submitProgress.setValue(0);
+    setSubmitPercent(0);
+
+    submitProgress.addListener(({ value }) => {
+      const percent = Math.round(value * 100);
+      setSubmitPercent(percent);
+    });
+
     Animated.timing(submitProgress, {
       toValue: 1,
       duration: 1800,
       useNativeDriver: false,
-    }).start();
-  }
+    }).start(() => {
+      submitProgress.removeAllListeners();
+    });
+  };
+
 
   const submitAMCQuiz = async () => {
     try {
@@ -517,10 +628,10 @@ const Fornixqbank2 = () => {
 
 
   const handleNext = () => {
-    if (!hasAnsweredCurrent.current) {
-      Alert.alert('Answer Required', 'Please select an answer');
-      return;
-    }
+    // if (!hasAnsweredCurrent.current) {
+    //   Alert.alert('Answer Required', 'Please select an answer');
+    //   return;
+    // }
 
     const currentQuestion = questions[currentIndex];
 
@@ -691,6 +802,7 @@ const Fornixqbank2 = () => {
     );
   }
 
+
   return (
     <View
       style={[
@@ -699,6 +811,72 @@ const Fornixqbank2 = () => {
       ]}>
       <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
+      <Modal
+        visible={showSummaryModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            width: '85%',
+            borderRadius: 12,
+            padding: 20
+          }}>
+            <Text style={{
+              fontSize: 18,
+              fontWeight: '700',
+              color: '#1A3848',
+              marginBottom: 15
+            }}>
+              Quiz Summary
+            </Text>
+
+            <Text style={{ fontSize: 15, marginBottom: 8 }}>
+              ✅ Attempted: {getAttemptedCount()}
+            </Text>
+
+            <Text style={{ fontSize: 15, marginBottom: 20 }}>
+              ⏭ Skipped: {getSkippedCount()}
+            </Text>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  backgroundColor: '#1A3848',
+                  borderRadius: 8
+                }}
+                onPress={() => setShowSummaryModal(false)}
+              >
+                <Text style={{ color: '#fff' }}>Review</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  backgroundColor: '#4CAF50',
+                  borderRadius: 8
+                }}
+                onPress={() => {
+                  setShowSummaryModal(false);
+                  SubmitQuiz();
+                }}
+              >
+                <Text style={{ color: '#fff' }}>Final Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* 🔹 Submit Progress Overlay */}
       {submitting && (
         <View style={styles.submitOverlay}>
@@ -717,9 +895,8 @@ const Fornixqbank2 = () => {
               ]}
             />
           </View>
-
           <Text style={styles.submitSubText}>
-            Calculating your score...
+            {submitPercent}% completed
           </Text>
         </View>
       )}
@@ -747,31 +924,23 @@ const Fornixqbank2 = () => {
 
             {/* Progress Indicator */}
             <View style={styles.progressContainer}>
+              <Text style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: timeLeft <= 60 ? '#FF5252' : '#FFFFFF',
+                textAlign: 'center',
+                marginTop: -20,
+              }}>
+                ⏱ Time Left: {formatTime(timeLeft)}
+              </Text>
               <Text style={styles.progressText}>
                 Question {currentIndex + 1} of {questions.length}
               </Text>
-              <View style={styles.loaderprogessbar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${((currentIndex + 1) / questions.length) * 100}%`,
-                    },
-                  ]}
-                />
-              </View>
             </View>
           </View>
         </View>
-
         {/* 🔹 Question Container */}
         <View style={styles.questionContainer}>
-          <Text style={{
-            textAlign: 'center', fontSize: 20,
-            fontWeight: '700',
-          }}>
-            {currentQuestion?.question_type}
-          </Text>
           {/* 🔹 Question Text */}
           <Text style={styles.questionText}>
             {currentQuestion?.question_text}
@@ -786,7 +955,7 @@ const Fornixqbank2 = () => {
 
           {/* 🔹 Options */}
           <View style={styles.optionsContainer}>
-          
+
             {currentQuestion?.options?.map(option => (
               <TouchableOpacity
                 key={option.option_key}
@@ -853,38 +1022,6 @@ const Fornixqbank2 = () => {
             ))}
           </View>
 
-          {/* 🔹 Explanation Section */}
-          {showExplanation && (
-            <View style={styles.explanationContainer}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Explanation</Text>
-                <View style={styles.sectionLine} />
-              </View>
-
-              <Text style={styles.exampleText}>
-                {currentQuestion.explanation}
-              </Text>
-
-              {/* 🔹 Correct Answer Indicator */}
-              <View style={styles.correctAnswerContainer}>
-                <View style={styles.correctAnswerHeader}>
-                  <Icon
-                    name="check-circle"
-                    size={moderateScale(getResponsiveSize(18))}
-                    color="#4CAF50"
-                  />
-                  <Text style={styles.correctAnswerText}>Correct Answer</Text>
-                </View>
-                <Text style={styles.correctAnswerValue}>
-                  {currentQuestion.correct_answer
-                    ? currentQuestion.correct_answer.toUpperCase()
-                    : 'Answer will be shown after submission'}
-                </Text>
-
-              </View>
-            </View>
-          )}
-
           {/* 🔹 Navigation Buttons */}
           <View style={styles.navigationContainer}>
             <TouchableOpacity
@@ -895,34 +1032,43 @@ const Fornixqbank2 = () => {
               onPress={handlePrevious}
               onPressIn={() => setIsPrevPressed(true)}
               onPressOut={() => setIsPrevPressed(false)}>
-              <Text
-                style={[
-                  styles.navButtonText,
-                  isPrevPressed && styles.navButtonTextPressed,
-                ]}>
-                {currentIndex === 0 ? 'Previous' : 'Previous'}
-              </Text>
+              <Icon
+                name="caret-left"
+                size={30}
+                color={isPrevPressed ? '#fff' : '#fff'}
+                style={{ marginRight: 6 }}
+              />
             </TouchableOpacity>
-
             <TouchableOpacity
-              disabled={submitting || (isLastQuestion && !canSubmit)}
+              disabled={submitting || (isLastQuestion && !hasAnsweredCurrent.current)}
               style={[
                 styles.navButton,
                 {
                   backgroundColor: submitting
                     ? "#B0BEC5"
                     : isLastQuestion
-                      ? canSubmit ? "#4CAF50" : '#A5D6A7'
+                      ? isSaved ? "#4CAF50" : "#FF9800"
                       : "#1A3848",
                 },
               ]}
-              onPress={handleNext}
+              onPress={() => {
+                if (!isLastQuestion) {
+                  handleNext();
+                } else if (!isSaved) {
+                  handleSaveLastQuestion();   // 🔥 SAVE
+                } else {
+                  SubmitQuiz();               // 🔥 FINAL SUBMIT
+                }
+              }}
             >
-              <Text style={styles.navButtonText}>
-                {isLastQuestion ? 'Submit Quiz' : 'Next Question'}
-              </Text>
+              {isLastQuestion ? (
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                  {isSaved ? 'Submit' : 'Save'}
+                </Text>
+              ) : (
+                <Icon name="caret-right" size={26} color="#fff" />
+              )}
             </TouchableOpacity>
-
           </View>
         </View>
       </ScrollView>
@@ -978,7 +1124,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   sectionTitle1: {
-    fontSize: moderateScale(getResponsiveSize(15)),
+    fontSize: moderateScale(getResponsiveSize(20)),
     fontFamily: 'Poppins-SemiBold',
     color: 'white',
     textAlign: 'center',
@@ -1206,7 +1352,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(getResponsiveSize(8)),
     paddingVertical: verticalScale(getResponsiveSize(12)),
     paddingHorizontal: scale(getResponsiveSize(25)),
-    minWidth: scale(getResponsiveSize(120)),
+    minWidth: scale(getResponsiveSize(90)),
     alignItems: 'center',
     minHeight: verticalScale(getResponsiveSize(45)),
   },

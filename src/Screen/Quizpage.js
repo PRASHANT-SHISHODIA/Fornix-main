@@ -101,14 +101,7 @@ const Quizpage = () => {
   };
 
   /* ---------- Timer ---------- */
-  // useEffect(() => {
-  //   if (timeLeft > 0) {
-  //     timerRef.current = setTimeout(() => {
-  //       setTimeLeft(prev => prev - 1);
-  //     }, 1000);
-  //   }
-  //   return () => clearTimeout(timerRef.current);
-  // }, [timeLeft]);
+ 
   useEffect(() => {
     if (timeLeft > 0) {
       timerRef.current = setTimeout(() => {
@@ -296,23 +289,23 @@ const Quizpage = () => {
 
 /* ---------- Styles ---------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F87F16' },
+  container: { flex: 1, backgroundColor: '#FFF' },
   scrollContent: { padding: scale(20), paddingBottom: verticalScale(30) },
   progressText: {
-    color: '#fff',
+    color: '#000',
     textAlign: 'center',
     fontSize: responsiveFontSize(14),
     marginBottom: verticalScale(10),
   },
   timerText: {
-    color: '#fff',
+    color: '#000',
     textAlign: 'center',
     fontSize: responsiveFontSize(30),
     marginBottom: verticalScale(20),
     fontFamily: 'Poppins-Bold',
   },
   questionText: {
-    color: '#fff',
+    color: '#000',
     fontSize: responsiveFontSize(18),
     marginBottom: verticalScale(20),
     fontFamily: 'Poppins-SemiBold',
@@ -325,7 +318,7 @@ const styles = StyleSheet.create({
   },
   optionButton: {
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#000',
     borderRadius: 12,
     padding: scale(15),
     marginBottom: verticalScale(12),
@@ -342,16 +335,16 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   optionCircleSelected: {
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
   },
   optionId: {
-    color: '#fff',
+    color: '#000',
     fontFamily: 'Poppins-SemiBold',
   },
   optionIdSelected: {
@@ -359,7 +352,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     flex: 1,
-    color: '#fff',
+    color: '#000',
     fontSize: responsiveFontSize(15),
   },
   navigationContainer: {
@@ -370,7 +363,7 @@ const styles = StyleSheet.create({
   navButton: {
     flex: 0.48,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: '#000',
     paddingVertical: verticalScale(14),
     borderRadius: 10,
     alignItems: 'center',
@@ -380,7 +373,7 @@ const styles = StyleSheet.create({
     borderColor: '#1A3848',
   },
   navButtonText: {
-    color: '#fff',
+    color: '#000',
     fontFamily: 'Poppins-SemiBold',
   },
 });

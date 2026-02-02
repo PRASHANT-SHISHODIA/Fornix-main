@@ -1,271 +1,571 @@
-import React, { useRef, useState } from 'react';
+// import React, { useEffect, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   FlatList,
+//   TouchableOpacity,
+//   Dimensions,
+//   ActivityIndicator,
+// } from 'react-native';
+// import axios from 'axios';
+// import Icon from 'react-native-vector-icons/FontAwesome5';
+
+// const { width } = Dimensions.get('window');
+// const CARD_WIDTH = width * 0.9;
+
+// const API_URL = 'https://fornix-medical.vercel.app/api/v1/mobile/courses';
+
+// const PlansScreen = () => {
+//   const [loading, setLoading] = useState(true);
+//   const [plans, setPlans] = useState([]);
+
+//   useEffect(() => {
+//     fetchPlans();
+//   }, []);
+
+//   const fetchPlans = async () => {
+//     try {
+//       const res = await axios.get(API_URL);
+
+//       // 👉 AMC course filter
+//       const amcCourse = res.data.data.find(
+//         item => item.name.trim() === 'AMC'
+//       );
+
+//       if (amcCourse && amcCourse.plans) {
+//         // priority_order ke according sort
+//         const sortedPlans = amcCourse.plans.sort(
+//           (a, b) => a.priority_order - b.priority_order
+//         );
+//         setPlans(sortedPlans);
+//       }
+//     } catch (error) {
+//       console.log('API Error:', error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const renderPlan = ({ item }) => <PlanCard plan={item} />;
+
+//   if (loading) {
+//     return (
+//       <View style={styles.center}>
+//         <ActivityIndicator size="large" color="#1A3848" />
+//       </View>
+//     );
+//   }
+
+//   return (
+//     <View style={styles.container}>
+//       <Text style={styles.heading}>Choose Your Plan</Text>
+
+//       <FlatList
+//         data={plans}
+//         keyExtractor={item => item.id}
+//         renderItem={renderPlan}
+//         showsVerticalScrollIndicator={false}
+//         contentContainerStyle={{ paddingBottom: 30 }}
+//       />
+//     </View>
+//   );
+// };
+
+// /* ================= PLAN CARD ================= */
+
+// const PlanCard = ({ plan }) => {
+//   return (
+//     <View style={[styles.card, plan.popular && styles.popularCard]}>
+      
+//       {plan.popular && (
+//         <View style={styles.popularBadge}>
+//           <Text style={styles.popularText}>MOST POPULAR</Text>
+//         </View>
+//       )}
+
+//       <Text style={styles.planName}>{plan.name}</Text>
+//       <Text style={styles.duration}>
+//         {plan.duration_in_days} Days Access
+//       </Text>
+
+//       {/* PRICE */}
+//       <View style={styles.priceRow}>
+//         <Text style={styles.discountPrice}>₹{plan.discount_price}</Text>
+//         <Text style={styles.originalPrice}>₹{plan.original_price}</Text>
+//       </View>
+
+//       {/* FEATURES */}
+//       <View style={styles.features}>
+//         {plan.access_features?.notes && <Feature icon="sticky-note" text="Notes" />}
+//         {plan.access_features?.tests && <Feature icon="clipboard-check" text="Tests" />}
+//         {plan.access_features?.videos && <Feature icon="video" text="Videos" />}
+//         {plan.access_features?.ai_explanation && (
+//           <Feature icon="robot" text="AI Explanation" />
+//         )}
+//       </View>
+
+//       {/* BUTTON */}
+//       <TouchableOpacity style={styles.buyBtn}>
+//         <Text style={styles.buyText}>Buy Now</Text>
+//       </TouchableOpacity>
+//     </View>
+//   );
+// };
+
+// const Feature = ({ icon, text }) => (
+//   <View style={styles.featureItem}>
+//     <Icon name={icon} size={14} color="#4CAF50" />
+//     <Text style={styles.featureText}>{text}</Text>
+//   </View>
+// );
+
+// /* ================= STYLES ================= */
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#F4F6F8',
+//     paddingTop: 20,
+//   },
+//   center: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   heading: {
+//     fontSize: 22,
+//     fontWeight: '700',
+//     color: '#1A3848',
+//     textAlign: 'center',
+//     marginBottom: 10,
+//   },
+//   card: {
+//     width: CARD_WIDTH,
+//     backgroundColor: '#fff',
+//     borderRadius: 18,
+//     padding: 18,
+//     alignSelf: 'center',
+//     marginVertical: 12,
+//     elevation: 4,
+//   },
+//   popularCard: {
+//     borderWidth: 2,
+//     borderColor: '#4CAF50',
+//   },
+//   popularBadge: {
+//     position: 'absolute',
+//     top: -12,
+//     right: 20,
+//     backgroundColor: '#4CAF50',
+//     paddingHorizontal: 12,
+//     paddingVertical: 4,
+//     borderRadius: 12,
+//   },
+//   popularText: {
+//     color: '#fff',
+//     fontSize: 11,
+//     fontWeight: 'bold',
+//   },
+//   planName: {
+//     fontSize: 18,
+//     fontWeight: '700',
+//     color: '#1A3848',
+//   },
+//   duration: {
+//     fontSize: 13,
+//     color: '#777',
+//     marginTop: 4,
+//   },
+//   priceRow: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     marginVertical: 14,
+//   },
+//   discountPrice: {
+//     fontSize: 24,
+//     fontWeight: 'bold',
+//     color: '#E53935',
+//     marginRight: 10,
+//   },
+//   originalPrice: {
+//     fontSize: 14,
+//     color: '#999',
+//     textDecorationLine: 'line-through',
+//   },
+//   features: {
+//     marginTop: 6,
+//   },
+//   featureItem: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     marginBottom: 8,
+//   },
+//   featureText: {
+//     marginLeft: 8,
+//     fontSize: 13,
+//     color: '#333',
+//   },
+//   buyBtn: {
+//     backgroundColor: '#1A3848',
+//     paddingVertical: 14,
+//     borderRadius: 14,
+//     marginTop: 16,
+//   },
+//   buyText: {
+//     color: '#fff',
+//     textAlign: 'center',
+//     fontSize: 15,
+//     fontWeight: '600',
+//   },
+// });
+
+// export default PlansScreen;
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   StyleSheet,
-  StatusBar,
+  FlatList,
   TouchableOpacity,
-  Alert,
   Dimensions,
-  ScrollView
+  ActivityIndicator,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 
-const { width, height } = Dimensions.get('window');
+const API_URL = 'https://fornix-medical.vercel.app/api/v1/mobile/courses';
 
-/* 🔹 Responsive helpers (OUTSIDE component) */
-const scale = size => (width / 375) * size;
-const verticalScale = size => (height / 812) * size;
-const moderateScale = (size, factor = 0.5) =>
-  size + (scale(size) - size) * factor;
+const PlansScreen = () => {
+  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState([]);
+  const { width, height } = useWindowDimensions();
+  
+  // Responsive calculations
+  const isLandscape = width > height;
+  const isTablet = width >= 768;
+  const isSmallPhone = width < 375;
 
-const getResponsiveSize = size => {
-  if (width < 375) return size * 0.85;
-  if (width > 414) return size * 1.15;
-  return size;
-};
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
-const getHeaderTransform = () => {
-  if (width < 375) return 1.5;
-  if (width > 414) return 1.7;
-  return 1.6;
-};
-
-const getSearchTransform = () => {
-  if (width < 375) return 0.65;
-  if (width > 414) return 0.6;
-  return 0.62;
-};
-
-if (Platform.OS === 'android') {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-
-const CourseSunscription = () => {
-  const insets = useSafeAreaInsets();
-  const navigation=useNavigation();
-
-  const courseData = [
-    {
-      id: 1,
-      title: 'NEET UG',
-      duration: '1 Year',
-      features: [
-        'Live Classes with Experts',
-        'Recorded Sessions',
-        'Mock Tests & Analysis',
-        'Study Material',
-        'Certificate',
-      ],
-    },
-    {
-      id: 2,
-      title: 'NEET PG',
-      duration: '1 Year',
-      features: [
-        'Advanced Clinical Topics',
-        'Live + Recorded Sessions',
-        'Daily Practice Questions',
-        'Mentor Support',
-        'Certificate',
-      ],
-    },
-  ];
-
-  const [expandedId, setExpandedId] = useState(null);
-
-  const toggleExpand = id => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedId(prev => (prev === id ? null : id));
+  const fetchPlans = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      const amcCourse = res.data.data.find(
+        item => item.name.trim() === 'AMC'
+      );
+      if (amcCourse && amcCourse.plans) {
+        const sortedPlans = amcCourse.plans.sort(
+          (a, b) => a.priority_order - b.priority_order
+        );
+        setPlans(sortedPlans);
+      }
+    } catch (error) {
+      console.log('API Error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const renderPlan = ({ item }) => (
+    <PlanCard 
+      plan={item} 
+      isTablet={isTablet}
+      isLandscape={isLandscape}
+      screenWidth={width}
+    />
+  );
 
-  // const onCoursePress = course => {
-  //   navigation.navigate()
-  
-
-  //  }
-  // };
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1A3848" />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar backgroundColor="#F87F16" barStyle="dark-content" />
+    <View style={styles.container}>
+      <Text style={[
+        styles.heading,
+        isTablet && styles.headingTablet,
+        isSmallPhone && styles.headingSmall
+      ]}>
+        Choose Your Plan
+      </Text>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      <FlatList
+        data={plans}
+        keyExtractor={item => item.id}
+        renderItem={renderPlan}
         showsVerticalScrollIndicator={false}
-      >
-        {/* 🔹 Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Choose Your Course</Text>
-          </View>
-        </View>
-        <View>
-          {courseData.map(item => {
-            const scaleAnim = useRef(new Animated.Value(1)).current;
-            const isExpanded = expandedId === item.id;
-
-            return (
-              <Animated.View
-                key={item.id}
-                style={[styles.card, { transform: [{ scale: scaleAnim }] }]}
-              >
-                {/* Header */}
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardDuration}>⏱ {item.duration}</Text>
-
-                {/* Features Preview / Expanded */}
-                <View style={styles.featuresBox}>
-                  {item.features
-                    .slice(0, isExpanded ? item.features.length : 2)
-                    .map((feature, index) => (
-                      <Text key={index} style={styles.featureItem}>
-                        ✔ {feature}
-                      </Text>
-                    ))}
-                </View>
-
-                {/* Expand Toggle */}
-                <TouchableOpacity
-                  onPress={() => toggleExpand(item.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.expandText}>
-                    {isExpanded ? 'Hide features ↑' : 'View all features ↓'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* CTA */}
-                <TouchableOpacity onPress={onCoursePress} style={styles.subscribeBtn}>
-                  <Text style={styles.subscribeText}>Enroll Now </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })}
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
+        contentContainerStyle={[
+          styles.listContent,
+          isLandscape && styles.listContentLandscape,
+          isTablet && styles.listContentTablet
+        ]}
+        numColumns={isLandscape || isTablet ? 2 : 1}
+        key={isLandscape || isTablet ? 'two-column' : 'one-column'}
+      />
+    </View>
   );
 };
 
-export default CourseSunscription;
+/* ================= PLAN CARD ================= */
+
+const PlanCard = ({ plan, isTablet, isLandscape, screenWidth }) => {
+  // Dynamic card width calculation
+  const cardWidth = useMemo(() => {
+    if (isLandscape) {
+      return screenWidth * 0.45;
+    }
+    if (isTablet) {
+      return screenWidth * 0.8;
+    }
+    return screenWidth * 0.9;
+  }, [isLandscape, isTablet, screenWidth]);
+
+  const isSmallPhone = screenWidth < 375;
+
+  return (
+    <View style={[
+      styles.card,
+      { width: cardWidth },
+      (isLandscape || isTablet) && styles.cardMultiColumn,
+      plan.popular && styles.popularCard
+    ]}>
+      
+      {plan.popular && (
+        <View style={styles.popularBadge}>
+          <Text style={styles.popularText}>MOST POPULAR</Text>
+        </View>
+      )}
+
+      <Text style={[
+        styles.planName,
+        isTablet && styles.planNameTablet,
+        isSmallPhone && styles.planNameSmall
+      ]}>
+        {plan.name}
+      </Text>
+      
+      <Text style={[
+        styles.duration,
+        isSmallPhone && styles.durationSmall
+      ]}>
+        {plan.duration_in_days} Days Access
+      </Text>
+
+      {/* PRICE */}
+      <View style={styles.priceRow}>
+        <Text style={[
+          styles.discountPrice,
+          isTablet && styles.discountPriceTablet,
+          isSmallPhone && styles.discountPriceSmall
+        ]}>
+          ₹{plan.discount_price}
+        </Text>
+        <Text style={[
+          styles.originalPrice,
+          isSmallPhone && styles.originalPriceSmall
+        ]}>
+          ₹{plan.original_price}
+        </Text>
+      </View>
+
+      {/* FEATURES */}
+      <View style={styles.features}>
+        {plan.access_features?.notes && <Feature icon="sticky-note" text="Notes" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.tests && <Feature icon="clipboard-check" text="Tests" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.videos && <Feature icon="video" text="Videos" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.ai_explanation && (
+          <Feature icon="robot" text="AI Explanation" isSmallPhone={isSmallPhone} />
+        )}
+      </View>
+
+      {/* BUTTON */}
+      <TouchableOpacity style={[
+        styles.buyBtn,
+        isTablet && styles.buyBtnTablet
+      ]}>
+        <Text style={[
+          styles.buyText,
+          isTablet && styles.buyTextTablet
+        ]}>
+          Buy Now
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const Feature = ({ icon, text, isSmallPhone }) => (
+  <View style={styles.featureItem}>
+    <Icon name={icon} size={isSmallPhone ? 12 : 14} color="#4CAF50" />
+    <Text style={[
+      styles.featureText,
+      isSmallPhone && styles.featureTextSmall
+    ]}>
+      {text}
+    </Text>
+  </View>
+);
+
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F4F6F8',
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
   },
-
-  scrollView: {
+  center: {
     flex: 1,
-  },
-
-  scrollContent: {
-    paddingBottom: verticalScale(getResponsiveSize(80)),
-    paddingHorizontal: scale(getResponsiveSize(15)),
-  },
-
-  header: {
-    backgroundColor: '#F87F16',
-    height: verticalScale(getResponsiveSize(220)),
-    borderBottomLeftRadius: scale(getResponsiveSize(400)),
-    borderBottomRightRadius: scale(getResponsiveSize(400)),
-    transform: [{ scaleX: getHeaderTransform() }],
-    marginBottom: verticalScale(getResponsiveSize(20)),
-  },
-
-  headerContent: {
-    paddingHorizontal: scale(getResponsiveSize(20)),
-    transform: [{ scaleX: getSearchTransform() }],
-    marginTop: verticalScale(getResponsiveSize(50)),
+    justifyContent: 'center',
     alignItems: 'center',
   },
-
-  headerTitle: {
-    fontSize: moderateScale(getResponsiveSize(24)),
+  heading: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1A3848',
+    textAlign: 'center',
+    marginBottom: 10,
   },
-
-  courseBox: {
-    padding: moderateScale(15),
-    marginBottom: verticalScale(10),
-    borderRadius: moderateScale(8),
-    backgroundColor: '#F2F2F2',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginTop: verticalScale(10),
-    // width:'200%',
-    // height:'100%'
+  headingTablet: {
+    fontSize: 28,
+    marginBottom: 20,
   },
-
-  courseText: {
-    fontSize: moderateScale(getResponsiveSize(16)),
-    fontWeight: '600',
-    color: '#333',
+  headingSmall: {
+    fontSize: 20,
+  },
+  listContent: {
+    paddingBottom: 30,
+    paddingHorizontal: 10,
+  },
+  listContentLandscape: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContentTablet: {
+    paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: '#FFFDFB',
-    borderRadius: moderateScale(16),
-    padding: moderateScale(16),
-    marginBottom: verticalScale(16),
-    elevation: 5,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    alignSelf: 'center',
+    marginVertical: 12,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    minHeight: 280,
   },
-
-  cardTitle: {
-    fontSize: moderateScale(20),
-    fontWeight: '700',
-    color: '#222',
-    marginBottom: verticalScale(4),
+  cardMultiColumn: {
+    marginHorizontal: 10,
   },
-
-  cardDuration: {
-    fontSize: moderateScale(13),
-    color: '#777',
-    marginBottom: verticalScale(10),
+  popularCard: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
   },
-
-  featuresBox: {
-    marginBottom: verticalScale(6),
+  popularBadge: {
+    position: 'absolute',
+    top: -12,
+    right: 20,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-
-  featureItem: {
-    fontSize: moderateScale(13),
-    color: '#444',
-    marginBottom: verticalScale(6),
-  },
-
-  expandText: {
-    fontSize: moderateScale(13),
-    color: '#F87F16',
-    fontWeight: '600',
-    marginBottom: verticalScale(12),
-  },
-
-  subscribeBtn: {
-    backgroundColor: '#F87F16',
-    paddingVertical: verticalScale(12),
-    borderRadius: 30,
-    alignItems: 'center',
-  },
-
-  subscribeText: {
+  popularText: {
     color: '#fff',
-    fontSize: moderateScale(14),
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  planName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A3848',
+  },
+  planNameTablet: {
+    fontSize: 22,
+  },
+  planNameSmall: {
+    fontSize: 16,
+  },
+  duration: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 4,
+  },
+  durationSmall: {
+    fontSize: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+  },
+  discountPrice: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#E53935',
+    marginRight: 10,
+  },
+  discountPriceTablet: {
+    fontSize: 28,
+  },
+  discountPriceSmall: {
+    fontSize: 20,
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#999',
+    textDecorationLine: 'line-through',
+  },
+  originalPriceSmall: {
+    fontSize: 12,
+  },
+  features: {
+    marginTop: 6,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  featureText: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#333',
+  },
+  featureTextSmall: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  buyBtn: {
+    backgroundColor: '#1A3848',
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  buyBtnTablet: {
+    paddingVertical: 16,
+  },
+  buyText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 15,
     fontWeight: '600',
   },
-
-
-
-
+  buyTextTablet: {
+    fontSize: 16,
+  },
 });
+
+export default PlansScreen;

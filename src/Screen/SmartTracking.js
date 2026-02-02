@@ -1,246 +1,347 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
   ActivityIndicator,
-  RefreshControl,
-  FlatList,
+  Alert,
+  useWindowDimensions,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import Icon from 'react-native-vector-icons/FontAwesome5';
 
-const { width } = Dimensions.get('window');
-
-/* ===================== API ===================== */
+/* ================= API ================= */
 const API_URL =
   'https://fornix-medical.vercel.app/api/v1/smart-tracking/compute';
 
-const REQUEST_BODY = {
-  user_id: '2f037c77-2641-4bcf-b68b-56ae983b218e',
-  course_id: 'cc613b33-3986-4d67-b33a-009b57a72dc8',
-};
-
-/* ===================== AXIOS ===================== */
-const api = axios.create({
-  timeout: 30000,
-  headers: { Accept: 'application/json' },
-});
-
-/* ===================== COMPONENT ===================== */
-const SmartTracking = () => {
+/* ================= MAIN SCREEN ================= */
+const SmartTrackingScreen = () => {
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [apiData, setApiData] = useState(null);
+  const { width, height } = useWindowDimensions();
 
-  /* ===================== FETCH ===================== */
-  const fetchData = useCallback(async () => {
-    try {
-      setError(null);
+  /* ---------- Responsive helpers ---------- */
+  const scale = (size) => (width / 375) * size;
+  const verticalScale = (size) => (height / 812) * size;
+  const moderateScale = (size, factor = 0.5) =>
+    size + (scale(size) - size) * factor;
 
-      const response = await api.post(API_URL, REQUEST_BODY);
-
-      if (response?.data?.success) {
-        setData(response.data);
-      } else {
-        throw new Error('Invalid API response');
-      }
-    } catch (e) {
-      console.log('SMART TRACKING ERROR:', e);
-      setError('Unable to load smart tracking data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData();
+  const getResponsiveFontSize = (size) => {
+    if (width < 375) return size * 0.85;
+    if (width > 414) return size * 1.15;
+    return size;
   };
 
-  const formatDate = d =>
-    d
-      ? new Date(d).toLocaleDateString('en-IN', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        })
-      : 'No activity';
+  /* ================= FETCH DATA ================= */
+  const fetchSmartTracking = async () => {
+    try {
+      setLoading(true);
 
-  /* ===================== LOADING ===================== */
+      const userId = await AsyncStorage.getItem('user_id');
+      const courseRaw = await AsyncStorage.getItem('selectedCourse');
+
+      if (!userId || !courseRaw) {
+        throw new Error('User or Course not found');
+      }
+
+      const course = JSON.parse(courseRaw);
+
+      const body = {
+        user_id: userId,               // ✅ STRING
+        course_id: course.courseId,    // ✅ FROM STORED COURSE
+      };
+
+      const res = await axios.post(API_URL, body, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      setApiData(res.data);
+      console.log("Data of api",res.data)
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        err?.response?.data?.error || err.message
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSmartTracking();
+  }, []);
+
+  /* ================= LOADING ================= */
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
+      <View style={styles.loader}>
         <ActivityIndicator size="large" color="#F87F16" />
-        <Text style={styles.loadingText}>Analyzing performance…</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  if (!data) return null;
+  if (!apiData?.success) return null;
+
+  /* ================= RESPONSE MAPPING ================= */
+  const {
+    course,
+    metrics = {},
+    data: smartData = {},
+  } = apiData;
 
   const {
     weaknesses = [],
     study_plan = [],
     pacing = {},
     next_actions = [],
-  } = data.data || {};
+  } = smartData;
 
-  const metrics = data.metrics || {};
+  const {
+    total_weeks = 0,
+    weekly_hours = 0,
+    by_subject = [],
+  } = pacing;
 
-  /* ===================== UI ===================== */
+  const lastActivity = metrics.last_activity
+    ? new Date(metrics.last_activity).toDateString()
+    : '-';
+
+  /* ================= UI ================= */
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#F87F16" barStyle="dark-content" />
+
       <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }>
-
-        {/* HEADER */}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* ================= HEADER ================= */}
         <View style={styles.header}>
-          <Icon name="chart-line" size={26} color="#fff" />
-          <Text style={styles.headerTitle}>Smart Tracking</Text>
+          <Text
+            style={[
+              styles.courseTitle,
+              { fontSize: moderateScale(getResponsiveFontSize(20)) },
+            ]}
+          >
+            {course} – Smart Tracking
+          </Text>
         </View>
 
-        {/* OVERVIEW */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Overview</Text>
-          <Text>Tests Attempted: {metrics.test_attempts_count ?? 0}</Text>
-          <Text>Quizzes Attempted: {metrics.quiz_attempts_count ?? 0}</Text>
-          <Text>Avg Test Score: {metrics.avg_test_score ?? 0}%</Text>
-          <Text>Avg Quiz Score: {metrics.avg_quiz_score ?? 0}%</Text>
-          <Text>Last Activity: {formatDate(metrics.last_activity)}</Text>
-        </View>
+        {/* ================= METRICS ================= */}
+        <Card title="📊 Performance Metrics">
+          <Metric label="Tests Attempted" value={metrics.test_attempts_count} />
+          <Metric label="Quizzes Attempted" value={metrics.quiz_attempts_count} />
+          <Metric label="Avg Test Score" value={metrics.avg_test_score} />
+          <Metric label="Avg Quiz Score" value={metrics.avg_quiz_score} />
+          <Metric label="Last Test Score" value={metrics.last_test_score} />
+          <Metric label="Last Activity" value={lastActivity} />
+        </Card>
 
-        {/* WEAK AREAS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Weak Areas</Text>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={weaknesses}
-            keyExtractor={item => item.area_id}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{item.area_name}</Text>
-                <Text style={styles.smallText}>{item.reason}</Text>
-                <Text>Severity: {item.severity}/5</Text>
-                <Text>Confidence: {item.confidence}%</Text>
+        {/* ================= WEAKNESSES ================= */}
+        <Card title="⚠️ Weak Areas">
+          {weaknesses.map((w, i) => (
+            <View key={i} style={styles.box}>
+              <Text style={styles.bold}>{w.area_name}</Text>
+              <Text style={styles.text}>{w.reason}</Text>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.meta}>Severity: {w.severity}</Text>
+                <Text style={styles.meta}>Confidence: {w.confidence}%</Text>
               </View>
-            )}
-          />
-        </View>
-
-        {/* STUDY PLAN */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Study Plan</Text>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={study_plan}
-            keyExtractor={item => item.area_id}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{item.area_name}</Text>
-                <Text>{item.weeks} weeks</Text>
-                <Text>{item.hours_per_week} hrs/week</Text>
-                <Text style={styles.smallText}>{item.milestone}</Text>
-              </View>
-            )}
-          />
-        </View>
-
-        {/* PACING */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pacing Summary</Text>
-          <Text>Total Weeks: {pacing.total_weeks}</Text>
-          <Text>Weekly Hours: {pacing.weekly_hours}</Text>
-        </View>
-
-        {/* NEXT ACTIONS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Next Actions</Text>
-          {next_actions.map((action, index) => (
-            <Text key={index} style={styles.bullet}>
-              • {action}
-            </Text>
+            </View>
           ))}
-        </View>
+        </Card>
 
-        {error && (
-          <View style={styles.error}>
-            <Text>{error}</Text>
+        {/* ================= STUDY PLAN ================= */}
+        <Card title="📚 Study Plan">
+          {study_plan.map((p, i) => (
+            <View key={i} style={styles.box}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.bold}>{p.area_name}</Text>
+                <Text style={styles.duration}>
+                  {p.weeks} week • {p.hours_per_week} hr/week
+                </Text>
+              </View>
+
+              <Text style={styles.subTitle}>Topics:</Text>
+              {(p.topics || []).map((t, idx) => (
+                <Text key={idx} style={styles.listItem}>• {t}</Text>
+              ))}
+
+              <Text style={styles.subTitle}>Milestone:</Text>
+              <Text style={styles.textItalic}>{p.milestone}</Text>
+
+              {p.resources?.length > 0 && (
+                <>
+                  <Text style={styles.subTitle}>Resources:</Text>
+                  {p.resources.map((r, idx) => (
+                    <Text key={idx} style={styles.listItem}>• {r}</Text>
+                  ))}
+                </>
+              )}
+            </View>
+          ))}
+        </Card>
+
+        {/* ================= PACING ================= */}
+        <Card title="⏱ Study Pacing">
+          <View style={styles.rowBetween}>
+            <Text style={styles.text}>Total Weeks: {total_weeks}</Text>
+            <Text style={styles.text}>Weekly Hours: {weekly_hours}</Text>
           </View>
-        )}
+
+          {by_subject.map((s, i) => (
+            <View key={i} style={styles.subjectRow}>
+              <Text style={styles.text}>{s.subject_name}</Text>
+              <Text style={styles.highlight}>
+                {s.hours_per_week} hr/week
+              </Text>
+            </View>
+          ))}
+        </Card>
+
+        {/* ================= NEXT ACTIONS ================= */}
+        <Card title="✅ Next Actions">
+          {next_actions.map((a, i) => (
+            <View key={i} style={styles.actionRow}>
+              <Text style={styles.highlight}>{i + 1}.</Text>
+              <Text style={styles.text}>{a}</Text>
+            </View>
+          ))}
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-/* ===================== STYLES ===================== */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12 },
+/* ================= SMALL COMPONENTS ================= */
+const Card = ({ title, children }) => (
+  <View style={styles.card}>
+    <Text style={styles.cardTitle}>{title}</Text>
+    {children}
+  </View>
+);
 
+const Metric = ({ label, value }) => (
+  <View style={styles.metricRow}>
+    <Text style={styles.metricLabel}>{label}</Text>
+    <Text style={styles.metricValue}>{value ?? '-'}</Text>
+  </View>
+);
+
+/* ================= STYLES ================= */
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  contentContainer: {
+    padding: 12,
+    paddingBottom: 30,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     backgroundColor: '#F87F16',
-    padding: 20,
-    alignItems: 'center',
-  },
-  headerTitle: { color: '#fff', fontSize: 20, marginTop: 6 },
-
-  section: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
     borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  courseTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    textAlign: 'center',
   },
-
   card: {
-    backgroundColor: '#F8F8F8',
-    padding: 14,
-    borderRadius: 10,
-    marginRight: 12,
-    width: width * 0.75,
+    backgroundColor: '#1A3848',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
   cardTitle: {
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '600',
+    marginBottom: 12,
     fontSize: 16,
-    marginBottom: 6,
   },
-  smallText: {
-    fontSize: 13,
-    color: '#555',
-    marginBottom: 6,
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-
-  bullet: {
-    marginBottom: 6,
-    fontSize: 14,
+  metricLabel: {
+    color: '#CBD5E1',
   },
-
-  error: {
-    backgroundColor: '#FFE5E5',
-    margin: 16,
-    padding: 12,
+  metricValue: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  box: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 8,
-    alignItems: 'center',
+    padding: 12,
+    marginBottom: 12,
+  },
+  bold: {
+    color: '#fff',
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  text: {
+    color: '#E2E8F0',
+  },
+  textItalic: {
+    color: '#E2E8F0',
+    fontStyle: 'italic',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  meta: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  subTitle: {
+    color: '#F87F16',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  listItem: {
+    color: '#E2E8F0',
+    marginLeft: 6,
+    marginTop: 4,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  duration: {
+    color: '#F87F16',
+    fontWeight: '600',
+  },
+  subjectRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  highlight: {
+    color: '#F87F16',
+    fontWeight: '600',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    gap: 8,
   },
 });
 
-export default SmartTracking;
+export default SmartTrackingScreen;

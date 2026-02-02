@@ -308,7 +308,7 @@ const MockTestResults = ({ route, navigation }) => {
             styles.congratsText,
             { fontSize: moderateScale(getResponsiveSize(24)) }
           ]}>
-            Great Job!
+            ThankYou For Attempted 
           </Text>
           <Text style={[
             styles.subCongratsText,
@@ -388,11 +388,6 @@ const MockTestResults = ({ route, navigation }) => {
             <View style={styles.giftContent}>
               {/* Gift Box Image */}
               <View style={styles.giftBoxContainer}>
-                {/* <Image
-                  source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2583/2583434.png' }}
-                  style={styles.giftImage}
-                  resizeMode="contain"
-                /> */}
                 {/* Confetti Animation */}
                 <View style={styles.confettiContainer}>
                   {[...Array(8)].map((_, i) => (

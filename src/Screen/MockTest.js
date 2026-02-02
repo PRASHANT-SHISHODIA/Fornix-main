@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,50 +46,128 @@ const MockTest = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [mockTests, setMockTests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userId] = useState('00c764c6-2dc0-4e13-a41b-2e3dcd32f471');
+  // const [userId] = useState('00c764c6-2dc0-4e13-a41b-2e3dcd32f471');
   const [searchQuery, setSearchQuery] = useState('');
+  const [userId, setUserId] = useState(null);
+  const [courseId, setCourseId] = useState(null);
+
+
 
   useEffect(() => {
-    fetchMockTests();
+    loadInitialData();
   }, []);
 
-  const fetchMockTests = async () => {
+  const loadInitialData = async () => {
     try {
-      setLoading(true);
-      
+      const storedUserId = await AsyncStorage.getItem('user_id');
       const courseData = await AsyncStorage.getItem('selectedCourse');
+      console.log("stor",storedUserId)
+      console.log('courseData', courseData)
+      
+
+      if (!storedUserId) {
+        Alert.alert('Error', 'User not found');
+        return;
+      }
+
       if (!courseData) {
         Alert.alert('Error', 'Course not found');
         return;
       }
-      
+
       const course = JSON.parse(courseData);
-      const courseId = course.id || 'cc613b33-3986-4d67-b33a-009b57a72dc8';
+      setUserId(storedUserId);
+      setCourseId(course.courseId);
+      console.log('couser',course)
+      console.log("setCouserId",courseId)
 
-      const response = await fetch('https://fornix-medical.vercel.app/api/v1/mobile/mock-tests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          course_id: courseId,
-          user_id: userId
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setMockTests(data.tests || []);
-      } else {
-        Alert.alert('Error', 'Failed to load mock tests');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Network error');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.log('Mock tests API error:', error);
+      Alert.alert('Error', 'Failed to load data');
     }
   };
+
+  useEffect(() => {
+    if (userId && courseId) {
+      fetchMockTests();
+    }
+  }, [userId, courseId]);
+
+
+  // const fetchMockTests = async () => {
+  //   try {
+  //     setLoading(true);
+
+  //     const response = await axios.post(
+  //       'https://fornix-medical.vercel.app/api/v1/mobile/mock-tests',
+  //       {
+  //         course_id: courseId,
+  //         user_id: userId,
+  //       },
+  //       {
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //         timeout: 15000,
+  //       }
+  //     );
+
+  //     if (response.data?.success) {
+  //       setMockTests(response.data.tests || []);
+  //     } else {
+  //       Alert.alert('Error', 'Failed to load mock tests');
+  //     }
+  //   } catch (error) {
+  //     console.log('Mock tests API error:', error);
+
+  //     if (error.response) {
+  //       Alert.alert(
+  //         'Error',
+  //         error.response.data?.message || 'Server error'
+  //       );
+  //     } else {
+  //       Alert.alert('Error', 'Network error');
+  //     }
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  const fetchMockTests = async () => {
+  try {
+    setLoading(true);
+
+    const response = await axios.post(
+      'https://fornix-medical.vercel.app/api/v1/mobile/mock-tests',
+      {
+        course_id: courseId,
+        user_id: userId,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000,
+      }
+    );
+
+    if (response?.data?.success) {
+      setMockTests(response.data.tests || []);
+    } else {
+      Alert.alert('Error', 'Failed to load mock tests');
+    }
+  } catch (error) {
+    // SAFE LOGGING (Hermes friendly)
+    console.log('Mock tests error message:', error?.message);
+    console.log('Mock tests error data:', error?.response?.data);
+
+    Alert.alert(
+      'Error',
+      error?.response?.data?.message || 'Network error'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const formatTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
@@ -111,9 +190,10 @@ const MockTest = ({ navigation }) => {
   };
 
   const handleTestPress = (test) => {
-    navigation.navigate('Mood', { testId: test.id,
-      mode :'MOCK_TEST'
-     });
+    navigation.navigate('Mood', {
+      testId: test.id,
+      mode: 'MOCK_TEST'
+    });
   };
 
   const filteredTests = mockTests.filter(test =>
@@ -125,7 +205,7 @@ const MockTest = ({ navigation }) => {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
-        
+
         {/* Header - Same as PYT screen */}
         <View style={styles.header}>
           <View style={styles.searchContainer}>
@@ -147,7 +227,7 @@ const MockTest = ({ navigation }) => {
             </View>
           </View>
         </View>
-        
+
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1A3848" />
           <Text style={styles.loadingText}>Loading mock tests...</Text>
@@ -160,7 +240,7 @@ const MockTest = ({ navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -214,8 +294,8 @@ const MockTest = ({ navigation }) => {
         {filteredTests.length > 0 ? (
           <View style={styles.testsContainer}>
             {filteredTests.map((test, index) => (
-              <TouchableOpacity 
-                key={test.id} 
+              <TouchableOpacity
+                key={test.id}
                 style={[
                   styles.testCard,
                   index % 2 === 0 ? styles.testCardEven : styles.testCardOdd,
@@ -227,24 +307,24 @@ const MockTest = ({ navigation }) => {
                   {/* Left side - Test info */}
                   <View style={styles.testInfo}>
                     <Text style={styles.testTitle}>{test.title}</Text>
-                    
+
                     <View style={styles.testStats}>
                       <View style={styles.statItem}>
                         <Icon name="question-circle" size={scale(14)} color="#1A3848" />
                         <Text style={styles.statText}>{test.total_questions || 0} Questions</Text>
                       </View>
-                      
+
                       <View style={styles.statItem}>
                         <Icon name="clock" size={scale(14)} color="#1A3848" />
                         <Text style={styles.statText}>{formatTime(test.duration_minutes || 0)}</Text>
                       </View>
-                      
+
                       <View style={styles.statItem}>
                         <Icon name="redo" size={scale(14)} color="#1A3848" />
                         <Text style={styles.statText}>{test.attempts_count || 0} Attempts</Text>
                       </View>
                     </View>
-                    
+
                     {/* Best Score */}
                     <View style={styles.scoreContainer}>
                       <Text style={styles.scoreLabel}>Best Score: </Text>
@@ -255,7 +335,7 @@ const MockTest = ({ navigation }) => {
                         {getScoreText(test.best_score)}
                       </Text>
                     </View>
-                    
+
                     {/* Description */}
                     {test.description && (
                       <Text style={styles.descriptionText} numberOfLines={2}>
@@ -263,10 +343,10 @@ const MockTest = ({ navigation }) => {
                       </Text>
                     )}
                   </View>
-                  
+
                   {/* Right side - Start Button */}
                   <View style={styles.buttonContainer}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[
                         styles.startButton,
                         test.attempts_count > 0 ? styles.attemptedButton : styles.newButton
@@ -276,10 +356,10 @@ const MockTest = ({ navigation }) => {
                       <Text style={styles.buttonText}>
                         Start Test
                       </Text>
-                      <Icon 
-                        name="play" 
-                        size={scale(12)} 
-                        color="white" 
+                      <Icon
+                        name="play"
+                        size={scale(12)}
+                        color="white"
                         style={styles.buttonIcon}
                       />
                     </TouchableOpacity>
@@ -309,11 +389,11 @@ const MockTest = ({ navigation }) => {
         )}
 
         {/* Footer Note */}
-        <View style={styles.footerContainer}>
+        {/* <View style={styles.footerContainer}>
           <Text style={styles.footerText}>
             Complete mock tests to track your progress
           </Text>
-        </View>
+        </View> */}
       </ScrollView>
     </View>
   );

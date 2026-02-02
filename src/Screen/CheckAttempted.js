@@ -16,7 +16,8 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import Sound from 'react-native-sound'; Sound.setCategory('Playback');
+import Sound from 'react-native-sound'; import { useNavigation } from '@react-navigation/native';
+Sound.setCategory('Playback');
 
 
 
@@ -62,6 +63,7 @@ const DEMO_QUESTIONS = [
 
 /* ===================== MAIN COMPONENT ===================== */
 const CheckAttempted = ({ route, navigation }) => {
+  // const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState('all');
@@ -209,7 +211,7 @@ const CheckAttempted = ({ route, navigation }) => {
         correctAnswer: correctAnswerIndex,
         userAnswer: userAnswerIndex,
         isCorrect,
-        difficulty: question.question_type,
+        // difficulty: question.question_type,
         question_image_url: question.question_image_url,
         option_keys: question.options.map(opt => opt.option_key),
         selected_key: userAnswerKey,
@@ -252,14 +254,18 @@ const CheckAttempted = ({ route, navigation }) => {
         <Icon name="arrow-left" size={18} color="#fff" />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>Attempted Questions</Text>
-      <TouchableOpacity onPress={fetchAttemptDetails} disabled={loading}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('TabNavigation')}
+        disabled={loading}
+      >
         <Icon
-          name="sync-alt"
+          name="home"
           size={18}
           color="#fff"
           style={loading && { opacity: 0.5 }}
         />
       </TouchableOpacity>
+
     </View>
   );
 
@@ -268,7 +274,7 @@ const CheckAttempted = ({ route, navigation }) => {
   };
 
 
- 
+
 
   const handleAudioExplanation = (question) => {
     const audioUrl = getAudioUrl(question);
@@ -310,13 +316,13 @@ const CheckAttempted = ({ route, navigation }) => {
   };
 
   useEffect(() => {
-  return () => {
-    if (currentSound) {
-      currentSound.stop();
-      currentSound.release();
-    }
-  };
-}, [currentSound]);
+    return () => {
+      if (currentSound) {
+        currentSound.stop();
+        currentSound.release();
+      }
+    };
+  }, [currentSound]);
 
 
 

@@ -41,6 +41,7 @@ import DiscussionDetails from '../Screen/DiscussionDetails';
 import MockTestResults from '../Screen/MockTestResults';
 import CheckAttemptedTest from '../Screen/CheckAttemptedTest';
 import AiBot from '../Screen/AiBot';
+import AIChatSessionsScreen from '../Screen/AIChatSessionsScreen';
 
 
 
@@ -248,6 +249,11 @@ function RootNavigation() {
          <Stack.Screen
           name='AiBot'
           component={AiBot}
+          options={{ headerShown: false }}
+        />
+         <Stack.Screen
+          name='AIChatSessionsScreen'
+          component={AIChatSessionsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

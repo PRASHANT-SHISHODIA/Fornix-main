@@ -31,6 +31,18 @@ const LoginDetail = () => {
   // Validation state
   const [errorFields, setErrorFields] = useState({ email: false, password: false });
 
+  const getSelectedCourseFromStorage = async () => {
+    try {
+      const data = await AsyncStorage.getItem('selectedCourse');
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch (e) {
+      console.log('Read selectedCourse error', e);
+      return null;
+    }
+  };
+
+
   // Toggle password visibility
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -72,9 +84,28 @@ const LoginDetail = () => {
         // await fetchAndSaveSubjects(data.token)
         console.log("TOKEN SAVED", data.token);
         console.log("USER ID SAVED", data.user.id);
+        // 🔥 READ COURSE SELECTION
+        const selectedCourse = await getSelectedCourseFromStorage();
 
         Alert.alert('Success', 'Login successful!');
-        navigation.navigate('TabNavigation');
+
+        if (selectedCourse && selectedCourse.planId) {
+          // ✅ Plan already purchased
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'TabNavigation' }],
+          });
+        } else {
+          // ❌ No plan → choose course
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'CourseChoose' }],
+          });
+        }
+
+
+        // Alert.alert('Success', 'Login successful!');
+        // navigation.navigate('TabNavigation');
       } else {
         Alert.alert('Invalid Credentials', data.message || 'Try again.');
       }

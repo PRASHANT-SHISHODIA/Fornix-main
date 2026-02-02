@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,19 +10,27 @@ import {
   Modal,
   FlatList,
   Alert,
+  ScrollView,
+  useWindowDimensions,
+  ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
-import { launchImageLibrary } from "react-native-image-picker";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useForm } from 'react-hook-form';
+import RazorpayCheckout from 'react-native-razorpay';
+
 
 
 
 const { width } = Dimensions.get('window');
 
-// Country data with high-quality flag images
+const API_URL = 'https://fornix-medical.vercel.app/api/v1/mobile/courses';
+const RAZORPAY_KEY = 'rzp_test_4U2LJWfsmsYINp';
+
+// Original country data (for phone codes only)
 const countries = [
   {
     code: 'US',
@@ -153,34 +161,251 @@ const Signupdetail = () => {
   // States for form inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
+
+  // New fields
+  const [dob, setDob] = useState('');
+  const [institute, setInstitute] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [gender, setGender] = useState('');
 
   // Validation state
   const [errorFields, setErrorFields] = useState({
     email: false,
     password: false,
+    confirmPassword: false,
     phone: false,
     name: false,
+    dob: false,
+    institute: false,
+    qualification: false,
+    gender: false,
+    qualifiedCountry: false,
+    course: false,
+  });
+
+  const [errorMessages, setErrorMessages] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    name: '',
+    dob: '',
+    institute: '',
+    qualification: '',
+    gender: '',
+    qualifiedCountry: '',
+    course: '',
   });
 
   // Dropdown States
-  const [selectedCountry, setSelectedCountry] = useState(countries[2]);
-  const [isDropdownVisible, setDropdownVisible] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(
+    countries && countries.length > 2 ? countries[2] : countries[0] || {}
+  );
+  const [isCountryCodeDropdownVisible, setCountryCodeDropdownVisible] = useState(false);
 
+  // New states for qualified countries and colleges
+  const [qualifiedCountries, setQualifiedCountries] = useState([]);
+  const [selectedQualifiedCountry, setSelectedQualifiedCountry] = useState(null);
+  const [selectedCollege, setSelectedCollege] = useState(null);
+  const [isQualifiedCountryModalVisible, setQualifiedCountryModalVisible] = useState(false);
+  const [isCollegeModalVisible, setCollegeModalVisible] = useState(false);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+
+  // Courses
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [isCourseModalVisible, setCourseModalVisible] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+
+  // Validation regex patterns
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
+  const nameRegex = /^[A-Za-z\s]{2,50}$/;
+  const phoneRegex = /^[0-9]{7,15}$/;
+  const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const qualificationRegex = /^[A-Za-z0-9\s.,-]{2,100}$/;
+  const { handleSubmit, register, getValues, clearErrors, setError, setValue, formState: { errors } } = useForm({
+    defaultValues: {
 
-  // Pick Image
-  const pickImage = () => {
-    launchImageLibrary({ mediaType: "photo" }, (response) => {
-      if (!response.didCancel && response.assets?.length > 0) {
-        setSelectedImage(response.assets[0]);
+      "name": null,
+      "email": null,
+      "password": null,
+      "country": null,
+      "country_id": null,
+      "college_name": null,
+      "gender": null,
+      "mobile": null,
+      "payment_id": null,
+      "course_id": null,
+      "plan_id": null,
+      "amount": null,
+      "transaction_mode": null,
+      "transaction_status": null,
+      "payment_date": null
+
+
+    }
+  })
+
+  const [nextPage, setNextPage] = useState(null)
+
+  // Gender Options
+  const genderOptions = ['Male', 'Female', 'Other'];
+
+  // Fetch qualified countries on component mount
+  useEffect(() => {
+    fetchQualifiedCountries();
+    fetchCourses();
+  }, [])
+  const [plans, setPlans] = useState([]);
+  const { width, height } = useWindowDimensions();
+
+  // Responsive calculations
+  const isLandscape = width > height;
+  const isTablet = width >= 768;
+  const isSmallPhone = width < 375;
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      const amcCourse = res.data.data.find(
+        item => item.name.trim() === 'AMC'
+      );
+      if (amcCourse && amcCourse.plans) {
+        const sortedPlans = amcCourse.plans.sort(
+          (a, b) => a.priority_order - b.priority_order
+        );
+        setPlans(sortedPlans);
       }
-    });
+    } catch (error) {
+      console.log('API Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const handleStartFree = async () => {
+    try {
+      // 🔴 validation
+      if (!selectedCourse) {
+        Alert.alert("Required", "Please select a course first");
+        return;
+      }
+
+      setLoading(true);
+
+      const payload = {
+        name: getValues("name"),
+        email: getValues("email"),
+        password: getValues("password"),
+        country: getValues("country"),
+        country_id: getValues("country_id"),
+        college_name: getValues("college_name"),
+        gender: getValues("gender"),
+        mobile: getValues("mobile"),
+        course_id: selectedCourse.id,
+      };
+
+      console.log("FREE REGISTER PAYLOAD 👉", payload);
+
+      const response = await axios.post(
+        "https://fornix-medical.vercel.app/api/v1/auth/register-free",
+        payload
+      );
+
+      console.log("FREE REGISTER RESPONSE 👉", response.data);
+
+      if (response.data.success) {
+        // ✅ user data save
+        await AsyncStorage.setItem(
+          "user_data",
+          JSON.stringify(response.data.user)
+        );
+
+        await AsyncStorage.setItem(
+          "enrolled_course",
+          JSON.stringify(response.data.enrolled_course)
+        );
+
+        Alert.alert("Success 🎉", response.data.message, [
+          {
+            text: "OK",
+            onPress: () => navigation.replace("Logindetail"),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.log("FREE REGISTER ERROR ❌", error.response?.data || error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Something went wrong"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const renderPlan = ({ item }) => (
+    <PlanCard
+      plan={item}
+      data={{ name: getValues("name"), mobile: getValues("mobile"), email: getValues("email"), country: getValues("country"), country_id: getValues('country_id'), gender: getValues("gender"), password: getValues('password'), college_name: getValues("college_name"), courses: selectedCourse }}
+      isTablet={isTablet}
+      isLandscape={isLandscape}
+      screenWidth={width}
+    />
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1A3848" />
+      </View>
+    );
+  }
+
+  const fetchQualifiedCountries = async () => {
+    try {
+      setLoadingCountries(true);
+      const response = await axios.get('https://fornix-medical.vercel.app/api/v1/mobile/countries');
+
+      if (response.data.success) {
+        setQualifiedCountries(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching qualified countries:', error);
+      Alert.alert('Error', 'Failed to fetch countries list');
+    } finally {
+      setLoadingCountries(false);
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      setLoadingCourses(true);
+      const res = await axios.get(
+        'https://fornix-medical.vercel.app/api/v1/mobile/courses'
+      );
+
+      if (res.data.success) {
+        setCourses(res.data.data);
+      }
+    } catch (error) {
+      console.log('Course API error:', error);
+      Alert.alert('Error', 'Unable to load courses');
+    } finally {
+      setLoadingCourses(false);
+    }
   };
 
   // Toggle Password
@@ -188,15 +413,71 @@ const Signupdetail = () => {
     setShowPassword(!showPassword);
   };
 
-  // Toggle Country Dropdown
-  const toggleDropdown = () => {
-    setDropdownVisible(!isDropdownVisible);
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
-  // Select Country
-  const selectCountry = country => {
-    setSelectedCountry(country);
-    setDropdownVisible(false);
+  // Toggle Country Code Dropdown
+  const toggleCountryCodeDropdown = () => {
+    setCountryCodeDropdownVisible(!isCountryCodeDropdownVisible);
+  };
+
+  // Select Country for phone code
+  const selectCountryForPhone = country => {
+    if (country) {
+      setSelectedCountry(country);
+      setCountryCodeDropdownVisible(false);
+    }
+  };
+
+  const handleCourseSelect = async (course) => {
+    setValue("course_id", course.id)
+    setSelectedCourse(course)
+    setCourseModalVisible(false);
+    setErrorFields(prev => ({ ...prev, course: false }));
+    setErrorMessages(prev => ({ ...prev, course: '' }));
+
+    // ✅ AsyncStorage me save
+    await AsyncStorage.setItem(
+      'selected_course',
+      JSON.stringify({
+        id: course.id,
+        name: course.name,
+      })
+    );
+  };
+
+  // Select Gender
+  const selectGender = (selectedGender) => {
+    setGender(selectedGender);
+    setErrorFields(prev => ({ ...prev, gender: false }));
+    setErrorMessages(prev => ({ ...prev, gender: '' }));
+  };
+
+  // Handle qualified country selection
+  const handleQualifiedCountrySelect = (country) => {
+    setValue("country", country.name)
+    setValue("country_id", country.id)
+    setSelectedQualifiedCountry(country)
+    setSelectedCollege(null);
+    setInstitute('');
+    setQualifiedCountryModalVisible(false);
+    setErrorFields(prev => ({ ...prev, qualifiedCountry: false }));
+    setErrorMessages(prev => ({ ...prev, qualifiedCountry: '' }));
+
+    // Auto-open college modal if country has colleges
+    if (country.colleges && country.colleges.length > 0) {
+      setCollegeModalVisible(true);
+    }
+  };
+
+  // Handle college selection
+  const handleCollegeSelect = (college) => {
+    setSelectedCollege(college);
+    setValue("college_name", college.name)
+    setCollegeModalVisible(false);
+    setErrorFields(prev => ({ ...prev, institute: false }));
+    setErrorMessages(prev => ({ ...prev, institute: '' }));
   };
 
   const saveUserData = async (user) => {
@@ -204,85 +485,98 @@ const Signupdetail = () => {
       await AsyncStorage.setItem('user_data', JSON.stringify(user));
       console.log('User data saved successfully');
     } catch (error) {
-      console.log("Error saving user data :", error);
+      console.log("Error saving user data:", error);
+    }
+  };
+
+  // Validation functions
+
+
+  const validateEmail = (text) => {
+    setEmail(text);
+    if (!text.trim()) {
+      setErrorFields(prev => ({ ...prev, email: true }));
+      setErrorMessages(prev => ({ ...prev, email: 'Email is required' }));
+    } else if (!emailRegex.test(text)) {
+      setErrorFields(prev => ({ ...prev, email: true }));
+      setErrorMessages(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+    } else {
+      setErrorFields(prev => ({ ...prev, email: false }));
+      setErrorMessages(prev => ({ ...prev, email: '' }));
+    }
+  };
+
+  const validatePassword = (text) => {
+    setPassword(text);
+    if (!text.trim()) {
+      setErrorFields(prev => ({ ...prev, password: true }));
+      setErrorMessages(prev => ({ ...prev, password: 'Password is required' }));
+    } else if (!passwordRegex.test(text)) {
+      setErrorFields(prev => ({ ...prev, password: true }));
+      setErrorMessages(prev => ({ ...prev, password: 'Password must have at least 6 characters, 1 uppercase letter and 1 digit' }));
+    } else {
+      setErrorFields(prev => ({ ...prev, password: false }));
+      setErrorMessages(prev => ({ ...prev, password: '' }));
+    }
+  };
+
+  const validateConfirmPassword = (text) => {
+    setConfirmPassword(text);
+    if (!text.trim()) {
+      setErrorFields(prev => ({ ...prev, confirmPassword: true }));
+      setErrorMessages(prev => ({ ...prev, confirmPassword: 'Please confirm your password' }));
+    } else if (text !== getValues("password")) {
+      setErrorFields(prev => ({ ...prev, confirmPassword: true }));
+      setErrorMessages(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+    } else {
+      setErrorFields(prev => ({ ...prev, confirmPassword: false }));
+      setErrorMessages(prev => ({ ...prev, confirmPassword: '' }));
+    }
+  };
+
+  const validatePhone = (text) => {
+    setPhoneNumber(text);
+    if (!text.trim()) {
+      setErrorFields(prev => ({ ...prev, phone: true }));
+      setErrorMessages(prev => ({ ...prev, phone: 'Phone number is required' }));
+    } else if (!phoneRegex.test(text)) {
+      setErrorFields(prev => ({ ...prev, phone: true }));
+      setErrorMessages(prev => ({ ...prev, phone: 'Phone number must be 7-15 digits' }));
+    } else {
+      setErrorFields(prev => ({ ...prev, phone: false }));
+      setErrorMessages(prev => ({ ...prev, phone: '' }));
+    }
+  };
+
+
+
+  const validateQualification = (text) => {
+    setQualification(text);
+    if (!text.trim()) {
+      setErrorFields(prev => ({ ...prev, qualification: true }));
+      setErrorMessages(prev => ({ ...prev, qualification: 'Qualification is required' }));
+    } else if (!qualificationRegex.test(text)) {
+      setErrorFields(prev => ({ ...prev, qualification: true }));
+      setErrorMessages(prev => ({ ...prev, qualification: 'Qualification must be 2-100 characters' }));
+    } else {
+      setErrorFields(prev => ({ ...prev, qualification: false }));
+      setErrorMessages(prev => ({ ...prev, qualification: '' }));
     }
   };
 
   // Handle Submit
-  const handleNext = async () => {
-    const validationResult = {
-      name: name.trim() === '',
-      email: !emailRegex.test(email),
-      password: password.length < 6,
-      // phone: phoneNumber.trim().length !== 10,
-      phone: phoneNumber.trim().length < 7,
-    };
+  const handleNext = async (data) => {
+    // Validate all fields
+    console.log(data)
+    setNextPage(data)
 
-    setErrorFields(validationResult);
-
-    if (Object.values(validationResult).includes(true)) {
-      Alert.alert("Invalid Input", "Please correct the highlighted fields.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      formData.append("password", password);
-      // formData.append("phone", phoneNumber);
-      formData.append(
-        "phone",
-        `${selectedCountry.dial_code}${phoneNumber}`
-      );
-
-      if (selectedImage) {
-        formData.append("profile_picture", {
-          uri: selectedImage.uri,
-          type: selectedImage.type || "image/jpeg",
-          name: selectedImage.fileName || "profile.jpg",
-        });
-      } else {
-        Alert.alert("Photo Required", "Please upload your profile picture.");
-        setLoading(false);
-        return;
-      }
-
-      const response = await axios.post(
-        "https://fornix-medical.vercel.app/api/v1/auth/register",   // <-- replace with your backend URL
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      console.log("Data", response.data.user);
-      if (response.data?.success === true) {
-        await saveUserData(response.data.user)
-        Alert.alert("Success", "Account created successfully!");
-        navigation.navigate("CourseChoose", { data: response.data.user });
-      }
-
-    } catch (error) {
-      console.log(error?.response?.data);
-      Alert.alert(
-        "Signup Failed",
-        error.response?.data?.error
-      );
-    }
-
-    setLoading(false);
   };
 
-  // Render country item for dropdown
+  // Render country item for phone code dropdown
   const renderCountryItem = ({ item }) => (
     <TouchableOpacity
       style={styles.countryItem}
-      onPress={() => selectCountry(item)}>
+      onPress={() => selectCountryForPhone(item)}>
       <Image
         source={{ uri: item.flag }}
         style={styles.countryFlag}
@@ -293,209 +587,625 @@ const Signupdetail = () => {
     </TouchableOpacity>
   );
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Title */}
-      <Text style={styles.title}>Create{'\n'}Account</Text>
-      <TouchableOpacity onPress={pickImage}>
-        <Image
-          source={
-            selectedImage
-              ? { uri: selectedImage.uri }
-              : require('../assets/Images/UploadPhoto.png')
-          }
-          style={{
-            height: 65,
-            width: 65,
-            borderRadius: 32,
-            marginBottom: 35,
-          }}
-        />
-
-      </TouchableOpacity>
-
-      {/* Name Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            borderWidth: name.trim() === '' && errorFields.name ? 1.5 : 0,
-            borderColor: errorFields.name ? 'red' : 'transparent',
-          },
-        ]}>
-        <Icon
-          name="person-outline"
-          size={20}
-          color="#000"
-          style={styles.leftIcon}
-        />
-        <TextInput
-          style={styles.textInput}
-          placeholder="Name"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={text => {
-            setName(text);
-            if (text.trim() !== '')
-              setErrorFields(prev => ({ ...prev, name: false }));
-          }}
-        />
+  // Render qualified country item
+  const renderQualifiedCountryItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.qualifiedCountryItem}
+      onPress={() => handleQualifiedCountrySelect(item)}>
+      <View style={styles.qualifiedCountryContent}>
+        <Text style={styles.qualifiedCountryName}>{item.name}</Text>
+        <Text style={styles.qualifiedCountryCourses}>
+          {item.courses_csv?.split(';').slice(0, 3).join(', ')}
+          {item.courses_csv?.split(';').length > 3 ? '...' : ''}
+        </Text>
       </View>
-
-      {/* Email Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            borderWidth: errorFields.email ? 1.5 : 0,
-            borderColor: errorFields.email ? 'red' : 'transparent',
-          },
-        ]}>
-        <Icon name="mail" size={20} color="#000" style={styles.leftIcon} />
-        <TextInput
-          style={styles.textInput}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={text => {
-            setEmail(text);
-            if (text.trim() !== '')
-              setErrorFields(prev => ({ ...prev, email: false }));
-          }}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
-
-      {/* Password Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            borderWidth: errorFields.password ? 1.5 : 0,
-            borderColor: errorFields.password ? 'red' : 'transparent',
-          },
-        ]}>
-        <Icon name="bag" size={20} color="#000" style={styles.leftIcon} />
-        <TextInput
-          style={styles.textInput}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={text => {
-            setPassword(text);
-            if (text.trim() !== '')
-              setErrorFields(prev => ({ ...prev, password: false }));
-          }}
-          autoCapitalize="none"
-        />
-        <TouchableOpacity
-          onPress={togglePasswordVisibility}
-          style={styles.rightIcon}>
-          <Icon
-            name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-            size={20}
-            color="#000"
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Phone Number Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            borderWidth: errorFields.phone ? 1.5 : 0,
-            borderColor: errorFields.phone ? 'red' : 'transparent',
-          },
-        ]}>
-        <TouchableOpacity
-          style={styles.countrySelector}
-          onPress={toggleDropdown}>
-          <Image
-            source={{ uri: selectedCountry.flag }}
-            style={styles.flagIcon}
-            resizeMode="cover"
-          />
-          <Text style={styles.dialCodeText}>{selectedCountry.dial_code}</Text>
-          <Icon name="chevron-down" size={16} color="#000" />
-        </TouchableOpacity>
-
-        <TextInput
-          style={[styles.textInput, styles.phoneInput]}
-          placeholder="Phone Number"
-          placeholderTextColor="#999"
-          keyboardType="phone-pad"
-          value={phoneNumber}
-          onChangeText={text => {
-            setPhoneNumber(text);
-            if (text.trim() !== '')
-              setErrorFields(prev => ({ ...prev, phone: false }));
-          }}
-        />
-      </View>
-
-      {/* Country Dropdown Modal */}
-      <Modal
-        visible={isDropdownVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setDropdownVisible(false)}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setDropdownVisible(false)}>
-          <View style={styles.dropdownContainer}>
-            <FlatList
-              data={countries}
-              renderItem={renderCountryItem}
-              keyExtractor={item => item.code}
-              showsVerticalScrollIndicator={false}
-              initialNumToRender={20}
-              maxToRenderPerBatch={20}
-              windowSize={10}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Next Button */}
-      {/* <TouchableOpacity style={styles.nextButton} onPress={handleNext}> */}
-      <TouchableOpacity
-        style={[styles.nextButton, loading && { opacity: 0.7 }]}
-        onPress={handleNext}
-        disabled={loading}
-      >
-        <Text style={styles.nextButtonText}>{loading ? "Please wait..." : "Sign Up"}</Text>
-      </TouchableOpacity>
-
-      {/* Cancel Button */}
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
+      <Icon name="chevron-forward" size={20} color="#666" />
+    </TouchableOpacity>
   );
+
+  // Render college item
+  const renderCollegeItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.collegeItem}
+      onPress={() => handleCollegeSelect(item)}>
+      <View style={styles.collegeContent}>
+        <Text style={styles.collegeName}>{item.name}</Text>
+        {item.city && (
+          <Text style={styles.collegeCity}>{item.city}</Text>
+        )}
+        <Text style={styles.collegeType}>{item.type}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Render course item
+  const renderCourseItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.collegeItem}
+      onPress={() => handleCourseSelect(item)}>
+      <Text style={styles.collegeName}>{item.name}</Text>
+    </TouchableOpacity>
+  );
+
+  console.log(errors)
+
+  if (nextPage) {
+    return (
+      // <View style={styles.container}>
+      //   <Text style={[
+      //     styles.heading,
+      //     isTablet && styles.headingTablet,
+      //     isSmallPhone && styles.headingSmall
+      //   ]}>
+      //     Choose Your Plan
+      //   </Text>
+
+      //   <View style={{alignContent:'center', alignItems:'center',}}>
+      //     <TouchableOpacity style={{width:"40%",height:'20%',
+      //       backgroundColor:'#000',
+      //     }}>
+      //       <Text>
+      //         Start free 
+      //       </Text>
+      //     </TouchableOpacity>
+      //   </View>
+
+      //   <FlatList
+      //     data={plans}
+      //     keyExtractor={item => item.id}
+      //     renderItem={renderPlan}
+      //     showsVerticalScrollIndicator={false}
+      //     contentContainerStyle={[
+      //       styles.listContent,
+      //       isLandscape && styles.listContentLandscape,
+      //       isTablet && styles.listContentTablet
+      //     ]}
+      //     numColumns={isLandscape || isTablet ? 2 : 1}
+      //     key={isLandscape || isTablet ? 'two-column' : 'one-column'}
+      //   />
+      // </View>
+      <View style={styles.container}>
+        <Text
+          style={[
+            styles.heading,
+            isTablet && styles.headingTablet,
+            isSmallPhone && styles.headingSmall,
+          ]}
+        >
+          Choose Your Plan
+        </Text>
+
+        {/* ✅ Start Free Button */}
+        <View style={styles.freeButtonWrapper}>
+          {/* <TouchableOpacity style={styles.freeButton}>
+            <Text style={styles.freeButtonText}>
+              Start Free
+            </Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity
+            style={styles.freeButton}
+            onPress={handleStartFree}
+            disabled={loading}
+          >
+            <Text style={styles.freeButtonText}>
+              {loading ? "Please wait..." : "Start Free"}
+            </Text>
+          </TouchableOpacity>
+
+        </View>
+
+        <FlatList
+          data={plans}
+          keyExtractor={item => item.id}
+          renderItem={renderPlan}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.listContent,
+            isLandscape && styles.listContentLandscape,
+            isTablet && styles.listContentTablet,
+          ]}
+          numColumns={isLandscape || isTablet ? 2 : 1}
+          key={isLandscape || isTablet ? 'two-column' : 'one-column'}
+        />
+      </View>
+
+    )
+  }
+  else {
+
+    return (
+      <ScrollView
+        style={[styles.scrollContainer, { paddingTop: insets.top }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.singupcontainer}>
+          {/* Title */}
+          <Text style={styles.title}>Create{'\n'}Account</Text>
+
+          {/* Name Input */}
+          <View>
+            <View
+              style={[
+                styles.inputContainer,
+                errorFields.name && styles.inputError,
+              ]}>
+              <Icon
+                name="person-outline"
+                size={20}
+                color="#000"
+                style={styles.leftIcon}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Full Name *"
+                placeholderTextColor="#999"
+                onChangeText={(text) => {
+                  setValue('name', text);
+
+                  if (!text || text.trim() === '') {
+                    setError('name', {
+                      type: 'required',
+                      message: 'Full name is required',
+                    });
+                  } else {
+                    clearErrors('name');
+                  }
+                }}
+              />
+
+            </View>
+            {errors.name ? <Text style={styles.errorText}>{errors.name.message}</Text> : null}
+          </View>
+
+          {/* Email Input */}
+          <View>
+            <View
+              style={[
+                styles.inputContainer,
+                errorFields.email && styles.inputError,
+              ]}>
+              <Icon name="mail" size={20} color="#000" style={styles.leftIcon} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Email Address *"
+                placeholderTextColor="#999"
+
+                onChangeText={(text) => {
+                  setValue('email', text);
+
+                  if (!text || text.trim() === '') {
+                    setError('email', {
+                      type: 'required',
+                      message: 'Email is required',
+                    });
+                  } else if (
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
+                  ) {
+                    setError('email', {
+                      type: 'pattern',
+                      message: 'Enter a valid email address',
+                    });
+                  } else {
+                    clearErrors('email');
+                  }
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            {errors.email ? <Text style={styles.errorText}>{errors.email.message}</Text> : null}
+          </View>
+
+          {/* Password Input */}
+          <View>
+            <View
+              style={[
+                styles.inputContainer,
+                errorFields.password && styles.inputError,
+              ]}>
+              <Icon name="lock-closed-outline" size={20} color="#000" style={styles.leftIcon} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Create Password *"
+                placeholderTextColor="#999"
+                secureTextEntry={!showPassword}
+
+                onChangeText={(text) => {
+                  setValue('password', text);
+
+                  if (!text || text.trim() === '') {
+                    setError('password', {
+                      type: 'required',
+                      message: 'Password is required',
+                    });
+                  } else if (text.length < 6) {
+                    setError('password', {
+                      type: 'minLength',
+                      message: 'Password must be at least 6 characters',
+                    });
+                  } else if (!/(?=.*[A-Z])/.test(text)) {
+                    setError('password', {
+                      type: 'pattern',
+                      message: 'Password must contain at least 1 uppercase letter',
+                    });
+                  } else if (!/(?=.*\d)/.test(text)) {
+                    setError('password', {
+                      type: 'pattern',
+                      message: 'Password must contain at least 1 number',
+                    });
+                  } else {
+                    clearErrors('password');
+                  }
+                }}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={togglePasswordVisibility}
+                style={styles.rightIcon}>
+                <Icon
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#000"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.password ? <Text style={styles.errorText}>{errors.message}</Text> : null}
+          </View>
+
+          {/* Confirm Password Input */}
+          <View>
+            <View
+              style={[
+                styles.inputContainer,
+                errorFields.confirmPassword && styles.inputError,
+              ]}>
+              <Icon name="lock-closed-outline" size={20} color="#000" style={styles.leftIcon} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Confirm Password *"
+                placeholderTextColor="#999"
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={validateConfirmPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={toggleConfirmPasswordVisibility}
+                style={styles.rightIcon}>
+                <Icon
+                  name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#000"
+                />
+              </TouchableOpacity>
+            </View>
+            {errorMessages.confirmPassword ? <Text style={styles.errorText}>{errorMessages.confirmPassword}</Text> : null}
+          </View>
+
+          {/* Qualification Country Selection */}
+          <View>
+            <TouchableOpacity
+              style={[
+                styles.qualificationCountryButton,
+                errorFields.qualifiedCountry && styles.inputError,
+              ]}
+              onPress={() => setQualifiedCountryModalVisible(true)}>
+              <View style={styles.buttonContent}>
+                <Icon name="earth-outline" size={20} color="#000" style={styles.leftIcon} />
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>Select Country for Qualification *</Text>
+                  {selectedQualifiedCountry ? (
+                    <Text style={styles.selectedValue}>{selectedQualifiedCountry.name}</Text>
+                  ) : (
+                    <Text style={styles.placeholderText}>Tap to select country</Text>
+                  )}
+                </View>
+                <Icon name="chevron-forward" size={20} color="#666" />
+              </View>
+            </TouchableOpacity>
+            {errorMessages.qualifiedCountry ? <Text style={styles.errorText}>{errorMessages.qualifiedCountry}</Text> : null}
+          </View>
+
+          {/* College/Institute Selection */}
+          <View>
+            <TouchableOpacity
+              style={[
+                styles.collegeButton,
+                errorFields.institute && styles.inputError,
+                !selectedQualifiedCountry && styles.disabledButton,
+              ]}
+              onPress={() => {
+                if (selectedQualifiedCountry) {
+                  setCollegeModalVisible(true);
+                }
+              }}
+              disabled={!selectedQualifiedCountry}>
+              <View style={styles.buttonContent}>
+                <Icon name="school-outline" size={20} color="#000" style={styles.leftIcon} />
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>Select College/Institute *</Text>
+                  {selectedCollege ? (
+                    <Text style={styles.selectedValue}>{selectedCollege.name}</Text>
+                  ) : (
+                    <Text style={styles.placeholderText}>
+                      {selectedQualifiedCountry ? 'Tap to select college' : 'Select country first'}
+                    </Text>
+                  )}
+                </View>
+                {selectedQualifiedCountry && (
+                  <Icon name="chevron-forward" size={20} color="#666" />
+                )}
+              </View>
+            </TouchableOpacity>
+            {errorMessages.institute ? <Text style={styles.errorText}>{errorMessages.institute}</Text> : null}
+          </View>
+
+          {/* Course Selection */}
+          <View>
+            <TouchableOpacity
+              style={[
+                styles.qualificationCountryButton,
+                errorFields.course && styles.inputError,
+              ]}
+              onPress={() => setCourseModalVisible(true)}
+            >
+              <View style={styles.buttonContent}>
+                <Icon name="book-outline" size={20} color="#000" style={styles.leftIcon} />
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>Select Course *</Text>
+                  {selectedCourse ? (
+                    <Text style={styles.selectedValue}>{selectedCourse.name}</Text>
+                  ) : (
+                    <Text style={styles.placeholderText}>Tap to select course</Text>
+                  )}
+                </View>
+                <Icon name="chevron-forward" size={20} color="#666" />
+              </View>
+            </TouchableOpacity>
+            {errorMessages.course ? <Text style={styles.errorText}>{errorMessages.course}</Text> : null}
+          </View>
+          {/* Gender Selection */}
+          <View style={styles.genderContainer}>
+            <Text style={styles.genderLabel}>Gender *</Text>
+            <View style={styles.genderOptions}>
+              {genderOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.genderOption,
+                    gender === option && styles.genderOptionSelected,
+                    errors.gender && styles.genderError,
+                  ]}
+                  onPress={() => {
+                    setGender(option)
+                    setValue("gender", option)
+                  }}
+                >
+                  <Text style={[
+                    styles.genderOptionText,
+                    gender === option && styles.genderOptionTextSelected
+                  ]}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {errorMessages.gender ? <Text style={styles.errorText}>{errorMessages.gender}</Text> : null}
+          </View>
+
+          {/* Phone Number Input */}
+          <View>
+            <View
+              style={[
+                styles.inputContainer,
+                errorFields.phone && styles.inputError,
+              ]}>
+              <TouchableOpacity
+                style={styles.countrySelector}
+                onPress={toggleCountryCodeDropdown}>
+                {selectedCountry && selectedCountry.flag ? (
+                  <>
+                    <Image
+                      source={{ uri: selectedCountry.flag }}
+                      style={styles.flagIcon}
+                      resizeMode="cover"
+                    />
+                    <Text style={styles.dialCodeText}>{selectedCountry.dial_code}</Text>
+                    <Icon name="chevron-down" size={16} color="#000" />
+                  </>
+                ) : (
+                  <Text style={styles.dialCodeText}>Select</Text>
+                )}
+              </TouchableOpacity>
+
+              <TextInput
+                style={[styles.textInput, styles.phoneInput]}
+                placeholder="Phone Number *"
+                placeholderTextColor="#999"
+                keyboardType="phone-pad"
+
+                onChangeText={(text) => {
+                  const onlyDigits = text.replace(/[^0-9]/g, '');
+
+                  setValue('mobile', onlyDigits);
+
+                  if (!onlyDigits) {
+                    setError('mobile', {
+                      type: 'required',
+                      message: 'Phone number is required',
+                    });
+                  } else if (onlyDigits.length < 10) {
+                    setError('mobile', {
+                      type: 'length',
+                      message: 'Phone number must be 10 digits',
+                    });
+                  }
+                  else {
+                    clearErrors('mobile');
+                  }
+                }}
+              />
+            </View>
+            {errors.mobile ? <Text style={styles.errorText}>{errors.mobile.message}</Text> : null}
+          </View>
+
+          {/* Country Code Dropdown Modal */}
+          <Modal
+            visible={isCountryCodeDropdownVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setCountryCodeDropdownVisible(false)}>
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setCountryCodeDropdownVisible(false)}>
+              <View style={styles.dropdownContainer}>
+                <FlatList
+                  data={countries}
+                  renderItem={renderCountryItem}
+                  keyExtractor={item => item.code}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={20}
+                  maxToRenderPerBatch={20}
+                  windowSize={10}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Qualified Countries Modal */}
+          <Modal
+            visible={isQualifiedCountryModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setQualifiedCountryModalVisible(false)}>
+            <View style={styles.fullModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Graduate Country</Text>
+                <TouchableOpacity
+                  onPress={() => setQualifiedCountryModalVisible(false)}
+                  style={styles.closeButton}>
+                  <Icon name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              {loadingCountries ? (
+                <View style={styles.loadingContainer}>
+                  <Text>Loading countries...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={qualifiedCountries}
+                  renderItem={renderQualifiedCountryItem}
+                  keyExtractor={item => item.id}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.modalContent}
+                />
+              )}
+            </View>
+          </Modal>
+
+          {/* Colleges Modal */}
+          <Modal
+            visible={isCollegeModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setCollegeModalVisible(false)}>
+            <View style={styles.fullModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Colleges in {selectedQualifiedCountry?.name}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setCollegeModalVisible(false)}
+                  style={styles.closeButton}>
+                  <Icon name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={selectedQualifiedCountry?.colleges || []}
+                renderItem={renderCollegeItem}
+                keyExtractor={item => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalContent}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text>No colleges available for this country</Text>
+                  </View>
+                }
+              />
+            </View>
+          </Modal>
+
+          {/* Course Modal */}
+          <Modal
+            visible={isCourseModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setCourseModalVisible(false)}
+          >
+            <View style={styles.fullModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Course</Text>
+                <TouchableOpacity onPress={() => setCourseModalVisible(false)}>
+                  <Icon name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+
+              {loadingCourses ? (
+                <View style={styles.loadingContainer}>
+                  <Text>Loading courses...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={courses}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderCourseItem}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.modalContent}
+                />
+              )}
+            </View>
+          </Modal>
+
+          {/* Next Button */}
+          <TouchableOpacity
+            style={[styles.nextButton, loading && { opacity: 0.7 }]}
+            onPress={handleSubmit(handleNext)}
+            disabled={loading}
+          >
+            <Text style={styles.nextButtonText}>
+              {loading ? "Please wait..." : "Sign Up"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Cancel Button */}
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
 };
 
 export const emailvalidation = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email) {
     return "please enter your email"
   }
   if (!emailRegex.test(email)) {
     return "please enter your valid email"
-
   }
   return '';
-
 };
 
 export const passwordValidation = (password) => {
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
   if (!password) {
     return "please enter your password"
-
   }
   if (!passwordRegex.test(password)) {
     return " At least 1 uppercase , 1 digit, mai 6 char"
@@ -503,11 +1213,227 @@ export const passwordValidation = (password) => {
   return ''
 }
 
+
+const PlanCard = ({ plan, isTablet, isLandscape, screenWidth, data }) => {
+  // Dynamic card width calculation
+  const navigation = useNavigation();
+  const cardWidth = useMemo(() => {
+    if (isLandscape) {
+      return screenWidth * 0.45;
+    }
+    if (isTablet) {
+      return screenWidth * 0.8;
+    }
+    return screenWidth * 0.9;
+  }, [isLandscape, isTablet, screenWidth]);
+
+  const isSmallPhone = screenWidth < 375;
+
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  const startRazorpayPayment = async (selectedPlan) => {
+
+
+    if (!selectedPlan) {
+      Alert.alert('Select Plan', 'Please select a plan first');
+      return;
+    }
+    console.log("select plan2", selectedPlan)
+    console.log("select plan2", selectedPlan.name)
+    console.log("select plan2", selectedPlan.price)
+    console.log("prefill", data)
+
+    setProcessingPayment(true);
+
+    const options = {
+      key: RAZORPAY_KEY,
+      amount: Number(selectedPlan.discount_price) * 100, // VERY IMPORTANT
+      currency: 'INR',
+      name: 'Fornix Medical',
+      description: `${selectedPlan.name}`,
+      prefill: {
+        email: data.email || 'test@gmail.com',
+        contact: data.mobile || '9999999999',
+        name: data.name || 'User',
+      },
+      theme: { color: '#F87F16' },
+    };
+
+
+    console.log('option', options)
+
+
+    try {
+      const paymentData = await RazorpayCheckout.open(options);
+      console.log('Payment Success:', paymentData);
+
+      await handlePaymentSuccess(paymentData, selectedPlan, data);
+    } catch (error) {
+      console.log('Payment Failed:', error);
+      Alert.alert('Payment Cancelled', 'Payment was not completed');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const saveCourseSelection = async (data, plan, payment) => {
+    try {
+      const dataa = {
+        courseId: data.courses.id,
+        courseName: data.courses.name,
+        planId: plan?.id || null,
+        planName: plan?.name || null,
+        planPrice: plan?.price || null,
+        paymentStatus: plan ? 'paid' : 'not_required',
+        enrolledAt: new Date().toISOString(),
+      };
+      const payload =
+      {
+        "name": data.name,
+        "email": data.email,
+        "password": data.password,
+        "country": data.country,
+        "country_id": data.country_id,
+        "college_name": data.college_name,
+        "gender": data.gender,
+        "mobile": data.mobile,
+        "payment_id": payment.razorpay_payment_id,
+        "course_id": data.courses.id,
+        "plan_id": plan?.id,
+        "amount": plan.discount_price,
+        "transaction_mode": "upi",
+        "transaction_status": "success",
+        "payment_date": "2026-01-30T12:00:00.000Z"
+      }
+      console.log("paylo", payload, payment)
+      const respone = await axios.post("https://fornix-medical.vercel.app/api/v1/auth/register-with-plan",
+        payload
+      )
+      console.log('res', respone)
+      await AsyncStorage.setItem('selectedCourse', JSON.stringify(dataa));
+    } catch (error) {
+      console.log('save error', error);
+    }
+  };
+
+
+  const handlePaymentSuccess = async (paymentData,
+    selectedPlan, data) => {
+    // console.log('jhj', selectedCourseForPlan)
+    try {
+      await saveCourseSelection(data, selectedPlan, paymentData);
+
+      Alert.alert('Success', 'Enrollment successful 🎉', [
+        {
+          text: 'OK',
+          onPress: () => navigation.replace('Logindetail'),
+        },
+      ]);
+    } catch (error) {
+      console.log('Post Payment Error:', error);
+      Alert.alert(
+        'Error',
+        'Payment was successful but something went wrong. Contact support.'
+      );
+    }
+  };
+
+  return (
+    <View style={[
+      styles.card,
+      { width: cardWidth },
+      (isLandscape || isTablet) && styles.cardMultiColumn,
+      plan.popular && styles.popularCard
+    ]}>
+
+      {plan.popular && (
+        <View style={styles.popularBadge}>
+          <Text style={styles.popularText}>MOST POPULAR</Text>
+        </View>
+      )}
+
+      <Text style={[
+        styles.planName,
+        isTablet && styles.planNameTablet,
+        isSmallPhone && styles.planNameSmall
+      ]}>
+        {plan.name}
+      </Text>
+
+      <Text style={[
+        styles.duration,
+        isSmallPhone && styles.durationSmall
+      ]}>
+        {plan.duration_in_days} Days Access
+      </Text>
+
+      {/* PRICE */}
+      <View style={styles.priceRow}>
+        <Text style={[
+          styles.discountPrice,
+          isTablet && styles.discountPriceTablet,
+          isSmallPhone && styles.discountPriceSmall
+        ]}>
+          ₹{plan.discount_price}
+        </Text>
+        <Text style={[
+          styles.originalPrice,
+          isSmallPhone && styles.originalPriceSmall
+        ]}>
+          ₹{plan.original_price}
+        </Text>
+      </View>
+
+      {/* FEATURES */}
+      <View style={styles.features}>
+        {plan.access_features?.notes && <Feature icon="sticky-note" text="Notes" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.tests && <Feature icon="clipboard-check" text="Tests" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.videos && <Feature icon="video" text="Videos" isSmallPhone={isSmallPhone} />}
+        {plan.access_features?.ai_explanation && (
+          <Feature icon="robot" text="AI Explanation" isSmallPhone={isSmallPhone} />
+        )}
+      </View>
+
+      {/* BUTTON */}
+      <TouchableOpacity
+        onPress={() => startRazorpayPayment(plan)}
+        style={[
+          styles.buyBtn,
+          isTablet && styles.buyBtnTablet
+        ]}>
+        <Text style={[
+          styles.buyText,
+          isTablet && styles.buyTextTablet
+        ]}>
+          Buy Now
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const Feature = ({ icon, text, isSmallPhone }) => (
+  <View style={styles.featureItem}>
+    <Icon name={icon} size={isSmallPhone ? 12 : 14} color="#4CAF50" />
+    <Text style={[
+      styles.featureText,
+      isSmallPhone && styles.featureTextSmall
+    ]}>
+      {text}
+    </Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: '#F87F16',
+  },
+  singupcontainer: {
     flex: 1,
     backgroundColor: '#F87F16',
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 30,
@@ -524,8 +1450,55 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 12,
     width: width - 48,
-    marginBottom: 16,
+    marginBottom: 8,
     height: 50,
+  },
+  qualificationCountryButton: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    width: width - 48,
+    marginBottom: 8,
+  },
+  collegeButton: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    width: width - 48,
+    marginBottom: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonTextContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  buttonLabel: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  selectedValue: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 15,
+    color: '#000',
+  },
+  placeholderText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 15,
+    color: '#999',
+  },
+  inputError: {
+    borderWidth: 1.5,
+    borderColor: 'red',
   },
   textInput: {
     flex: 1,
@@ -563,11 +1536,95 @@ const styles = StyleSheet.create({
     color: '#000000CC',
     marginRight: 8,
   },
+  genderContainer: {
+    marginBottom: 8,
+  },
+  genderLabel: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: '#FFF',
+    marginBottom: 8,
+    marginLeft: 5,
+  },
+  genderOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  genderOption: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  genderOptionSelected: {
+    backgroundColor: '#1A3848',
+    borderColor: '#1A3848',
+  },
+  genderError: {
+    borderColor: 'red',
+    borderWidth: 1.5,
+  },
+  genderOptionText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: '#000000CC',
+  },
+  genderOptionTextSelected: {
+    color: 'white',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 8,
+    marginLeft: 5,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fullModalContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    marginTop: 50,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  modalTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: '#000',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 50,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
   },
   dropdownContainer: {
     backgroundColor: 'white',
@@ -583,6 +1640,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+  },
+  qualifiedCountryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  qualifiedCountryContent: {
+    flex: 1,
+  },
+  qualifiedCountryName: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 4,
+  },
+  qualifiedCountryCourses: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#666',
+  },
+  collegeItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  collegeContent: {
+    flex: 1,
+  },
+  collegeName: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 4,
+  },
+  collegeCity: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  collegeType: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#888',
+    textTransform: 'capitalize',
   },
   countryFlag: {
     width: 32,
@@ -624,6 +1730,175 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Poppins-Regular',
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F6F8',
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A3848',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  headingTablet: {
+    fontSize: 28,
+    marginBottom: 20,
+  },
+  headingSmall: {
+    fontSize: 20,
+  },
+  listContent: {
+    paddingBottom: 30,
+    paddingHorizontal: 10,
+  },
+  listContentLandscape: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContentTablet: {
+    paddingHorizontal: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    alignSelf: 'center',
+    marginVertical: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    minHeight: 280,
+  },
+  cardMultiColumn: {
+    marginHorizontal: 10,
+  },
+  popularCard: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -12,
+    right: 20,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  popularText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  planName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A3848',
+  },
+  planNameTablet: {
+    fontSize: 22,
+  },
+  planNameSmall: {
+    fontSize: 16,
+  },
+  duration: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 4,
+  },
+  durationSmall: {
+    fontSize: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+  },
+  discountPrice: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#E53935',
+    marginRight: 10,
+  },
+  discountPriceTablet: {
+    fontSize: 28,
+  },
+  discountPriceSmall: {
+    fontSize: 20,
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#999',
+    textDecorationLine: 'line-through',
+  },
+  originalPriceSmall: {
+    fontSize: 12,
+  },
+  features: {
+    marginTop: 6,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  featureText: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#333',
+  },
+  featureTextSmall: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  buyBtn: {
+    backgroundColor: '#1A3848',
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  buyBtnTablet: {
+    paddingVertical: 16,
+  },
+  buyText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  buyTextTablet: {
+    fontSize: 16,
+  },
+  freeButtonWrapper: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+
+  freeButton: {
+    width: '70%',           // ✅ responsive
+    height: 48,             // ❌ % height hatao
+    backgroundColor: '#000',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,           // Android shadow
+  },
+
+  freeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+  },
+
 });
 
 export default Signupdetail;

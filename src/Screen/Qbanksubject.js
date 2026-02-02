@@ -9,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   Animated,
+  Image
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon1 from 'react-native-vector-icons/Ionicons';
@@ -64,7 +65,7 @@ const Qbanksubject = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   // const blinkAnim = useRef(new Animated.Value(0)).current;
   console.log("COURSE IN THE", selectedCourse)
-  
+
 
   // 🔹 Subject list (with navigation routes)
   const subjects = [
@@ -134,35 +135,49 @@ const Qbanksubject = () => {
     outputRange: ['#1A3848', '#F87F16'],
   });
 
+
   const getSubjectsByCourse = async (courseId) => {
     try {
+      setLoading(true);
       const token = await AsyncStorage.getItem('token');
-
 
       const response = await axios.post(
         'https://fornix-medical.vercel.app/api/v1/subjects',
         {
-          course_id: 'cc613b33-3986-4d67-b33a-009b57a72dc8',
-        }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          course_id: courseId, // ✅ dynamic
         },
-      }
-      )
-      setSubject(response.data.data);
-      console.log("Api respons", response.data.data)
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      setSubject(response.data.data || []);
     } catch (error) {
-      console.log("SUBJECT API ERROR ", error.response.data || error.message);
+      console.log(
+        'SUBJECT API ERROR',
+        error.response?.data || error.message
+      );
     } finally {
       setLoading(false);
     }
-  }
+  };
+
   console.log("Subject responae ", subject)
 
+  // useEffect(() => {
+  //   getSubjectsByCourse();
+  // }, []);
   useEffect(() => {
-    getSubjectsByCourse();
-  }, []); const BookLoader = () => {
+    if (selectedCourse?.courseId) {
+      getSubjectsByCourse(selectedCourse.courseId);
+    }
+  }, [selectedCourse]);
+
+
+  const BookLoader = () => {
     return (
       <View style={styles.loaderContainer}>
         <View style={styles.book}>
@@ -246,9 +261,16 @@ const Qbanksubject = () => {
               >
                 <View style={styles.featureContent}>
                   <View style={styles.featureIconContainer}>
-                    <Icon name="book" size={22} color="#1A3848" />
+                    {sub.icon_url ? (
+                      <Image
+                        source={{ uri: sub.icon_url }}
+                        style={styles.subjectIcon}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Icon name="book" size={22} color="#1A3848" />
+                    )}
                   </View>
-
                   <View style={styles.textContainer}>
                     <Text style={styles.featureTitle}>{sub.name}</Text>
                   </View>
@@ -407,6 +429,11 @@ const styles = StyleSheet.create({
     color: '#1A3848',
     fontFamily: 'Poppins-Medium',
   },
+  subjectIcon: {
+  width: scale(getResponsiveSize(35)),
+  height: scale(getResponsiveSize(35)),
+},
+
 
 });
 

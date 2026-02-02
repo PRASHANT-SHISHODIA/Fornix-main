@@ -53,8 +53,8 @@ const Profile = () => {
       id: '1',
       title: 'Edit Profile',
       icon: 'edit',
-      onPress: () => navigation.navigate('Editprofile',{
-        data:profileData,
+      onPress: () => navigation.navigate('Editprofile', {
+        data: profileData,
       })
     },
     //  {
@@ -94,7 +94,7 @@ const Profile = () => {
       icon: 'user-plus',
       onPress: () => navigation.navigate('Refer')
     },
-    
+
     {
       id: '8',
       title: 'Logout',
@@ -145,31 +145,93 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
+
+  const resetCourseProgress = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const userId = await AsyncStorage.getItem("user_id");
+      const course = await AsyncStorage.getItem("selectedCourse");
+      console.log('course', course)
+      // expected value: "AMC" or something else
+
+      if (!token || !userId) {
+        Alert.alert("Session Expired", "Please login again");
+        navigation.replace("Logindetail");
+        return;
+      }
+
+      let apiUrl = "";
+      let body = {};
+
+      // ✅ CONDITION
+      if (course?.courseName === "AMC") {
+        apiUrl = "https://fornix-medical.vercel.app/api/v1/subject-quiz/reset";
+        body = {
+          user_id: userId,
+          scope: "all",
+        };
+      } else {
+        apiUrl = "https://fornix-medical.vercel.app/api/v1/quiz/reset";
+        body = {
+          user_id: userId,
+        };
+      }
+
+      console.log("RESET API:", apiUrl);
+      console.log("RESET BODY:", body);
+
+      const response = await axios.post(apiUrl, body, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("RESET RESPONSE:", response.data);
+
+      // ✅ SUCCESS HANDLING
+      if (response.data?.success) {
+        Alert.alert(
+          "Success",
+          course === "AMC"
+            ? "All AMC answers have been reset successfully."
+            : `Course reset successfully. Attempts deleted: ${response.data.deleted_attempts || 0}`
+        );
+      } else {
+        Alert.alert("Failed", "Reset was not successful");
+      }
+
+    } catch (error) {
+      console.log("RESET ERROR", error.response?.data || error.message);
+      Alert.alert("Error", "Failed to reset course");
+    }
+  };
+
+
   const showResetConfirmation = () => {
     Alert.alert(
       "Reset App",
       "Are you sure you want to reset all app data? This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Reset", style: "destructive", onPress: () => console.log("Reset app") }
+        { text: "Reset", style: "destructive", onPress: resetCourseProgress }
       ]
     );
   };
 
-    const handleLogout = async () =>{
-    try{
+  const handleLogout = async () => {
+    try {
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("user_id");
       await AsyncStorage.removeItem("user");
       navigation.reset({
         index: 0,
-        routes :[{name:"Logindetail"}],
+        routes: [{ name: "Logindetail" }],
       });
-    }catch(error){
+    } catch (error) {
       console.log("LOGOUT ERROR", error.message);
-      Alert.alert("Error","Failed to logout");
+      Alert.alert("Error", "Failed to logout");
     }
-   };
+  };
 
   const showLogoutConfirmation = () => {
     Alert.alert(
@@ -177,7 +239,7 @@ const Profile = () => {
       "Are you sure you want to logout?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Logout", style: "destructive", onPress:handleLogout }
+        { text: "Logout", style: "destructive", onPress: handleLogout }
       ]
     );
   };
@@ -312,9 +374,9 @@ const Profile = () => {
       }
     });
   };
- 
 
-   
+
+
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

@@ -14,7 +14,6 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon1 from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Screen width and height
@@ -53,9 +52,6 @@ const getSearchTransform = () => {
 const BasicPlan = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  // const selectedCourse = Selected.course;
-  // const route = useRoute();
-  // const selectedCourse = route?.params?.selectedCourse;
   const [selectedCourse, setSelectedCourse] = useState(null);
 
   useEffect(() => {
@@ -65,11 +61,11 @@ const BasicPlan = () => {
         const parsed = JSON.parse(courseData);
         setSelectedCourse(parsed);
       }
-
     };
     loadCourse();
-
   }, []);
+
+
 
 
   const features = [
@@ -80,7 +76,7 @@ const BasicPlan = () => {
       description: 'Access question bank',
       onPress: () => navigation.navigate('Qbanksubject'),
     },
-    selectedCourse?.courseName?.includes  ('AMC')
+    selectedCourse?.courseName?.includes('AMC')
       ? {
         id: '2',
         title: 'PYTs',
@@ -89,14 +85,12 @@ const BasicPlan = () => {
         onPress: () => navigation.navigate('PYTS'),
       }
       : {
-
         id: '2',
         title: 'PYQs',
         icon: 'file-alt',
         description: 'Previous year questions',
         onPress: () => navigation.navigate('PYQs'),
       },
-
     {
       id: '3',
       title: 'Mock Test',
@@ -117,6 +111,12 @@ const BasicPlan = () => {
       icon: 'sticky-note',
       description: 'Study notes',
       onPress: () => navigation.navigate('Notes'),
+    },
+    {
+      id: '6',
+      title: 'Smart Tracking',
+      icon: 'chart-line',
+      onPress: () => navigation.navigate('SmartTracking'),
     },
   ];
 
@@ -144,6 +144,8 @@ const BasicPlan = () => {
     inputRange: [0, 1],
     outputRange: ['#1A3848', '#F87F16'],
   });
+
+
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -175,11 +177,10 @@ const BasicPlan = () => {
         {/* Features Grid */}
         <View style={styles.featuresGrid}>
           {features.map(feature => (
-            <TouchableOpacity
-              key={feature.id}
-              style={styles.featureCard}
-              onPress={feature.onPress}>
-              <View style={styles.featureContent}>
+            <View key={feature.id} style={styles.featureItem}>
+              <TouchableOpacity
+                style={styles.featureCard}
+                onPress={feature.onPress}>
                 <View style={styles.featureIconContainer}>
                   <Icon
                     name={feature.icon}
@@ -187,32 +188,27 @@ const BasicPlan = () => {
                     color="#1A3848"
                   />
                 </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <Text style={styles.featureTitle}>{feature.title}</Text>
+            </View>
           ))}
         </View>
-
-        {/* Upgrade Banner */}
-        <View style={styles.upgradeContent}>
-          <Animated.View style={[styles.upgradeButton, { backgroundColor }]}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('PremiumPlan')}
-              activeOpacity={0.8}>
-              <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        {/* Note Section */}
-        <View style={styles.noteContainer}>
-          <Text style={styles.noteText}>
-            Note: This is a base plan. Upgrade for more features.
-          </Text>
-        </View>
       </ScrollView>
+      <Animated.View
+        style={[
+          styles.upgradeButton,
+          { backgroundColor }
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('PlanCard')}
+          style={styles.upgradeButtonInner}
+        >
+          <Icon name="crown" size={16} color="#fff" />
+          <Text style={styles.upgradeButtonText}>Buy Plan</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 };
@@ -266,83 +262,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: scale(getResponsiveSize(20)),
+    paddingHorizontal: scale(getResponsiveSize(30)),
     marginBottom: verticalScale(getResponsiveSize(30)),
   },
+  featureItem: {
+    width: (width - scale(getResponsiveSize(60))) / 4,
+    alignItems: 'center',
+    marginBottom: verticalScale(getResponsiveSize(25)),
+  },
   featureCard: {
-    width: (width - scale(getResponsiveSize(60))) / 2,
+    width: scale(getResponsiveSize(70)),
+    height: scale(getResponsiveSize(70)),
     backgroundColor: '#1A3848',
     borderRadius: moderateScale(getResponsiveSize(16)),
-    paddingHorizontal: scale(getResponsiveSize(15)),
-    marginBottom: verticalScale(getResponsiveSize(20)),
-    paddingVertical: verticalScale(getResponsiveSize(10)),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,
-    minHeight: verticalScale(getResponsiveSize(80)),
-  },
-  featureContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'center',
+    marginBottom: verticalScale(getResponsiveSize(8)),
   },
   featureIconContainer: {
-    width: scale(getResponsiveSize(60)),
-    height: scale(getResponsiveSize(60)),
-    borderRadius: scale(getResponsiveSize(60)),
+    width: scale(getResponsiveSize(50)),
+    height: scale(getResponsiveSize(50)),
+    borderRadius: scale(getResponsiveSize(20)),
     backgroundColor: '#F0F4F8',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#F87F16',
-    marginLeft: scale(getResponsiveSize(-25)),
-  },
-  textContainer: {
-    flex: 1,
-    marginLeft: scale(getResponsiveSize(10)),
-    justifyContent: 'center',
   },
   featureTitle: {
-    fontSize: moderateScale(getResponsiveSize(14)),
+    fontSize: moderateScale(getResponsiveSize(12)),
     fontFamily: 'Poppins-SemiBold',
-    color: 'white',
-    marginTop: '12%',
-    includeFontPadding: false,
-    textAlign: 'center',
-  },
-  upgradeContent: {
-    alignItems: 'flex-end',
-    paddingHorizontal: scale(getResponsiveSize(10)),
-    paddingTop: verticalScale(getResponsiveSize(70)),
-  },
-  upgradeButton: {
-    borderRadius: moderateScale(getResponsiveSize(12)),
-    paddingVertical: verticalScale(getResponsiveSize(15)),
-    paddingHorizontal: scale(getResponsiveSize(12)),
-    minWidth: scale(getResponsiveSize(160)),
-  },
-  upgradeButtonText: {
-    color: '#FFF',
-    fontSize: moderateScale(getResponsiveSize(15)),
-    fontFamily: 'Poppins-SemiBold',
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  noteContainer: {
-    marginTop: verticalScale(getResponsiveSize(60)),
-    paddingHorizontal: scale(getResponsiveSize(20)),
-  },
-  noteText: {
-    fontSize: moderateScale(getResponsiveSize(10)),
-    fontFamily: 'Poppins-Regular',
     color: '#1A3848',
     textAlign: 'center',
-    marginBottom: verticalScale(getResponsiveSize(10)),
     includeFontPadding: false,
   },
+  upgradeButton: {
+    position: 'absolute',
+    right: scale(20),
+    bottom: verticalScale(90), // footer se thoda upar
+    borderRadius: moderateScale(30),
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+
+  upgradeButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: scale(18),
+    paddingVertical: verticalScale(10),
+  },
+
+  upgradeButtonText: {
+    color: '#fff',
+    fontSize: moderateScale(14),
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: scale(8),
+  },
+
 });
 
 export default BasicPlan;

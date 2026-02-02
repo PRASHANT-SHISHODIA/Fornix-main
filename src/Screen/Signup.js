@@ -40,7 +40,7 @@ const Signup = () => {
     <View style={[styles.container,{paddingTop: insets.top}]}>
       
       {/* Title */}
-      <Text style={styles.title}>Let's You In</Text>
+      <Text style={styles.title}>Let's Get You In</Text>
 
       {/* Social Login Buttons */}
       <TouchableOpacity style={styles.socialButton}>

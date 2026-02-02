@@ -95,24 +95,24 @@ const Home = () => {
   const [profileImage, setProfileimage] = useState(null)
 
   useEffect(() => {
-  if (!studentTestimonials?.length) return;
+    if (!studentTestimonials?.length) return;
 
-  const interval = setInterval(() => {
-    setTestimonialIndex(prev => {
-      const nextIndex =
-        prev === studentTestimonials?.length - 1 ? 0 : prev + 1;
+    const interval = setInterval(() => {
+      setTestimonialIndex(prev => {
+        const nextIndex =
+          prev === studentTestimonials?.length - 1 ? 0 : prev + 1;
 
-      testimonialRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
+        testimonialRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+        return nextIndex;
       });
-      return nextIndex;
-    });
-  }, 3000);
+    }, 3000);
 
-  return () => clearInterval(interval);
-}, [studentTestimonials]);
-// console.log("testmenolian",testimonialIndex)
+    return () => clearInterval(interval);
+  }, [studentTestimonials]);
+  // console.log("testmenolian",testimonialIndex)
 
 
   // Student testimonials data
@@ -161,13 +161,13 @@ const Home = () => {
     }
   ];
 
-   const greeting =() => {
-    const hour =new Date().getHours();
-    if(hour < 12) return "Good Morning";
-    if(hour < 17) return "Good Afternoon";
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
     if (hour < 21) return "Good Evening";
     return "Good Night";
-   }
+  }
 
 
 
@@ -284,12 +284,16 @@ const Home = () => {
     return () => clearInterval(autoScroll);
   }, [currentIndex]);
 
+  // const getTabBackgroundColor = (filter) => {
+  //   if (filter === 'Live Quiz') {
+  //     return isBlinking ? '#F87F16' : '#1A3848';
+  //   }
+  //   return activeFilter === filter ? '#F87F16' : '#1A3848';
+  // };
   const getTabBackgroundColor = (filter) => {
-    if (filter === 'Live Quiz') {
-      return isBlinking ? '#F87F16' : '#1A3848';
-    }
     return activeFilter === filter ? '#F87F16' : '#1A3848';
   };
+
 
   const onScroll = (event) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -346,7 +350,7 @@ const Home = () => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar  barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={styles.scrollView}
@@ -366,9 +370,9 @@ const Home = () => {
                 style={styles.profileImage}
               />
               <Text style={styles.greeting}>{`${greeting()} ${userName.full_name}`}</Text>
-              <TouchableOpacity  
-              // onPress={()=>navigation.navigate('Course')}
-              style={styles.bellIconContainer}>
+              <TouchableOpacity
+                // onPress={()=>navigation.navigate('Course')}
+                style={styles.bellIconContainer}>
                 <Icon2
                   name="bell"
                   size={moderateScale(getResponsiveSize(16))}
@@ -397,9 +401,7 @@ const Home = () => {
           </View>
         </View>
 
-        <Text style={styles.Titletext}>Your Program (30)</Text>
-
-        {/* Filter Tabs */}
+        <Text style={styles.Titletext}>Your Program (30)</Text>        
         <View style={styles.filterContainer}>
           {filterTabs.map((filter) => (
             <TouchableOpacity
@@ -409,16 +411,32 @@ const Home = () => {
                 { backgroundColor: getTabBackgroundColor(filter) }
               ]}
               onPress={() => handleFilterPress(filter)}
+              activeOpacity={0.8}
             >
-              <Text style={[
-                styles.filterText,
-                activeFilter === filter && styles.activeText
-              ]}>
-                {filter}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text
+                  style={[
+                    styles.filterText,
+                    activeFilter === filter && styles.activeText,
+                  ]}
+                >
+                  {filter}
+                </Text>
+
+                {/* 🔴 LIVE blinking dot */}
+                {filter === 'Live Quiz' && (
+                  <View
+                    style={[
+                      styles.liveDot,
+                      { opacity: isBlinking ? 1 : 0.2 },
+                    ]}
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
+
         <BannerCarousel
           banners={banners}
           loading={loading}
@@ -430,7 +448,7 @@ const Home = () => {
 
         {/* Testimonials Section */}
         <View style={styles.testimonialsContainer}>
-          <Text style={styles.testimonialsTitle}>Testimonials</Text>
+          <Text style={styles.testimonialsTitle}>Success Story</Text>
         </View>
 
         {/* Student Testimonials Section */}
@@ -446,9 +464,9 @@ const Home = () => {
               horizontal
               pagingEnabled
               showsVerticalScrollIndicator={false}
-              getItemLayout={(data,index)=> ({
-                length:width*0.8 + 15,
-                offset :( width *0.8 + 15) * index,
+              getItemLayout={(data, index) => ({
+                length: width * 0.8 + 15,
+                offset: (width * 0.8 + 15) * index,
                 index,
               })}
               onScrollToIndexFailed={() => { }}
@@ -657,7 +675,7 @@ const styles = StyleSheet.create({
     width: "40%",
     marginRight: 15,
   },
-  
+
   studentItem: {
     borderWidth: 1.5,
     borderColor: '#1A3848',
@@ -704,6 +722,14 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     includeFontPadding: false,
   },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'red',
+    marginLeft: 6,
+  },
+
 });
 
 export default Home;
