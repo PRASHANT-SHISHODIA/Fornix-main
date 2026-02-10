@@ -122,6 +122,8 @@ const Mood = () => {
     ).start();
   }, [blinkAnim]);
 
+  console.log("mooddddd",moodOptions)
+
   const backgroundColor = blinkAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['#1A3848', '#F87F16'],
@@ -134,29 +136,25 @@ const Mood = () => {
       setSelectedMood(null);
     } else {
       // Select the new mood
-      setSelectedMood(moodId);
+      setSelectedMood({id:moodId, title: moodOptions.find(m => m?.id === moodId)?.title || ''});
     }
   };
 
-
   // 🔹 Get background color for mood card
   const getMoodCardColor = (moodId) => {
-    return selectedMood === moodId ? '#F87F16' : '#1A3848';
+    return selectedMood?.id === moodId ? '#F87F16' : '#1A3848';
   };
 
   // 🔹 Get icon background color
   const getIconBackgroundColor = (moodId) => {
-    return selectedMood === moodId ? '#FFFFFF' : '#F0F4F8';
+    return selectedMood?.id === moodId ? '#FFFFFF' : '#F0F4F8';
   };
 
   // 🔹 Get icon color
   const getIconColor = (moodId) => {
-    return selectedMood === moodId ? '#F87F16' : '#1A3848';
+    return selectedMood?.id === moodId ? '#F87F16' : '#1A3848';
   };
 
-  const selectedMoodObj = moodOptions.find(
-    m => m.id === selectedMood
-  );
 
   return (
     <View

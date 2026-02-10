@@ -1,5 +1,5 @@
 // Fornixqbank2.js
-import React, { useState, useEffect, useRef, } from 'react';
+import React, { useState, useEffect, useRef, use, } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import Tts from 'react-native-tts';
 import axios from 'axios';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { set } from 'react-hook-form';
 
 // Screen dimensions
 const { width, height } = Dimensions.get('window');
@@ -82,8 +83,9 @@ const Fornixqbank2 = () => {
       case 'Moderate':
         return 'medium';
       case 'Competitive':
+        return `difficult`;
       case 'Difficult':
-        return 'hard';
+        return 'difficult';
       default:
         return 'easy';
     }
@@ -100,7 +102,7 @@ const Fornixqbank2 = () => {
   const [loading, setLoading] = useState(true);
   const [score, setScore] = useState(0);
   const [userAnswers, setUserAnswers] = useState([]);
-  const [pulseAnim] = useState(new Animated.Value(1));
+  const [pulseAnim, setPulseAnim] = useState(new Animated.Value(1));
   const hasAnsweredCurrent = useRef(false);
   const isLastQuestion = currentIndex === questions.length - 1;
   const canSubmit = isLastQuestion && hasAnsweredCurrent.current;
@@ -117,6 +119,7 @@ const Fornixqbank2 = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const timerRef = useRef(null);
   const [submitPercent, setSubmitPercent] = useState(0);
+  const [openTracker, setOpenTracker] = useState(false)
 
 
 
@@ -160,40 +163,40 @@ const Fornixqbank2 = () => {
     return () => backHandler.remove();
   }, []);
 
-  const callMockTestStartApi = async () => {
-    if (!userId || !testId) {
-      console.log('❌ Missing userId or testId');
-      return;
-    }
+  // const callMockTestStartApi = async () => {
+  //   if (!userId || !testId) {
+  //     console.log('❌ Missing userId or testId');
+  //     return;
+  //   }
 
-    try {
-      setLoading(true);
+  //   try {
+  //     setLoading(true);
 
-      const url = `https://fornix-medical.vercel.app/api/v1/mobile/mock-tests/${testId}/start`;
+  //     const url = "https://fornix-medical.vercel.app/api/v1/mobile/mock-tests/${testId}/start";
 
-      const response = await axios.post(url, {
-        user_id: userId,
-      });
+  //     const response = await axios.post(url, {
+  //       user_id: userId,
+  //     });
 
-      if (response?.data?.success) {
-        setAttemptId(response.data.attempt?.id);
-        setQuestions(response.data.questions || []);
-        setCurrentIndex(0);
+  //     if (response?.data?.success) {
+  //       setAttemptId(response.data.attempt?.id);
+  //       setQuestions(response.data.questions || []);
+  //       setCurrentIndex(0);
 
-        console.log('✅ MOCK TEST STARTED');
-      } else {
-        Alert.alert('Error', 'Mock Test start failed');
-      }
-    } catch (error) {
-      console.log(
-        '❌ MOCK TEST API ERROR:',
-        error?.response?.data || error.message
-      );
-      Alert.alert('Error', 'Unable to start mock test');
-    } finally {
-      setLoading(false);
-    }
-  };
+  //       console.log('✅ MOCK TEST STARTED');
+  //     } else {
+  //       Alert.alert('Error', 'Mock Test start failed');
+  //     }
+  //   } catch (error) {
+  //     console.log(
+  //       '❌ MOCK TEST API ERROR:',
+  //       error?.response?.data || error.message
+  //     );
+  //     Alert.alert('Error', 'Unable to start mock test');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   useEffect(() => {
     hasAnsweredCurrent.current = false;
@@ -203,12 +206,13 @@ const Fornixqbank2 = () => {
 
 
   const getAttemptedCount = () => {
-    const { answers } = useQuizStore.getState();
-    return Object.keys(answers || {}).length;
+    
+    return userAnswers.length;
   };
 
+
   const getSkippedCount = () => {
-    return questions.length - getAttemptedCount();
+    return questions.length - userAnswers.length;
   };
 
 
@@ -264,7 +268,7 @@ const Fornixqbank2 = () => {
         '❌ SUBJECT QUIZ ERROR:',
         error?.response?.data || error.message
       );
-      Alert.alert('Error', 'Unable to load subject quiz');
+      Alert.alert('Error', error?.response?.data.message);
     } finally {
       setLoading(false);
     }
@@ -300,12 +304,14 @@ const Fornixqbank2 = () => {
   };
 
   useEffect(() => {
-    const getUserId = async () => {
-      const storedUserId = await AsyncStorage.getItem('user_id');
-      setUserId(storedUserId);
-    };
-    getUserId();
-  }, [])
+  const getUserId = async () => {
+    const storedUserId = await AsyncStorage.getItem('user_id');
+    setUserId(storedUserId);
+  };
+
+  getUserId();
+}, []);
+
 
   const callTopicQuizApi = async () => {
 
@@ -341,13 +347,7 @@ const Fornixqbank2 = () => {
   };
 
   useEffect(() => {
-    if (!userId) return;
-
-    // ✅ MOCK TEST FLOW
-    if (mode === 'MOCK_TEST' && testId) {
-      callMockTestStartApi();
-      return;
-    }
+   
 
     // ✅ SUBJECT (AMC) FLOW
     if (mood && subjectId) {
@@ -366,17 +366,21 @@ const Fornixqbank2 = () => {
       callDirectQuizApi();
     }
 
-  }, [userId, mode, testId, topicId, mood, subjectId]);
+  }, [mood, subjectId, mode, topicId, userId]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+    return `${m}:${s < 10 ? '0' : ''}${s}`
   };
 
 
   useEffect(() => {
     if (!questions.length) return;
+
+    if (questions.length > 0 && !quizStartTime) {
+      setQuizStartTime(Date.now());
+    }
 
     // ⏱ 1 question = 1 minute
     const totalSeconds = questions.length * 60;
@@ -423,8 +427,6 @@ const Fornixqbank2 = () => {
   };
 
 
-
-
   const handleHardwareBackPress = () => {
     stopTTS();
     navigation.replace('Topicwise');
@@ -458,11 +460,13 @@ const Fornixqbank2 = () => {
     };
 
     setUserAnswers(prev => [...prev, answerRecord]);
+    
 
     if (isCorrect) {
       setScore(prev => prev + 1);
     }
   };
+
 
   const getSavedAnswer = (questionId) => {
     return userAnswers.find(a => a.questionId === questionId);
@@ -489,11 +493,7 @@ const Fornixqbank2 = () => {
     }
 
   };
-  useEffect(() => {
-    if (questions.length > 0 && !quizStartTime) {
-      setQuizStartTime(Date.now());
-    }
-  }, [questions]);
+  
 
   const getTimeTakenInSeconds = () => {
     if (!quizStartTime) return 0;
@@ -522,36 +522,42 @@ const Fornixqbank2 = () => {
   // }
   
 
-  const startSubmitProgress = () => {
-    submitProgress.setValue(0);
-    setSubmitPercent(0);
+const startSubmitProgress = () => {
+  submitProgress.setValue(0);
+  setSubmitPercent(0);
 
-    submitProgress.addListener(({ value }) => {
-      const percent = Math.round(value * 100);
-      setSubmitPercent(percent);
-    });
+  submitProgress.addListener(({ value }) => {
+    const percent = Math.round(value * 100);
+    setSubmitPercent(percent); // ❌ triggers render ~60 times/sec
+  });
 
-    Animated.timing(submitProgress, {
-      toValue: 1,
-      duration: 1800,
-      useNativeDriver: false,
-    }).start(() => {
-      submitProgress.removeAllListeners();
-    });
-  };
+  Animated.timing(submitProgress, {
+    toValue: 1,
+    duration: 1800,
+    useNativeDriver: false,
+  }).start(() => {
+    submitProgress.removeAllListeners();
+  });
+};
 
+
+  console.log("USER ANSWERS", userAnswers)
 
   const submitAMCQuiz = async () => {
     try {
       setSubmitting(true);
       startSubmitProgress();
+      const answers = userAnswers.map(ans => ({
+        question_id: ans.questionId,
+        selected_option: ans.selected,
+      }));
       const payload = {
         user_id: userId,
         attempt_id: attempted,
         subject_id: subjectId,
         question_type: getQuestionTypeFromMood(mood.title),
         time_taken_seconds: getTimeTakenInSeconds(),
-        answers: useQuizStore.getState().answers,
+        answers: answers,
       };
       console.log('Amc Submit Payload:', JSON.stringify(payload, null, 2));
       const response = await axios.post("https://fornix-medical.vercel.app/api/v1/subject-quiz/submit",
@@ -561,6 +567,7 @@ const Fornixqbank2 = () => {
       if (response?.data?.success) {
         setTimeout(() => {
           setSubmitting(false);
+          clearInterval(timerRef.current);
           handleSubmitSuccess(response?.data);
         }, 1800);
       } else {
@@ -661,20 +668,6 @@ const Fornixqbank2 = () => {
     }
   };
 
-  const navigateToResults = () => {
-    const percentage = Math.round((score / questions.length) * 100);
-
-    navigation.navigate('QuizResults', {
-      score: score,
-      totalQuestions: questions.length,
-      percentage: percentage,
-      topicName: ChapterName,
-      userAnswers: userAnswers,
-      questions: questions,
-      timeSpent: '45 mins',
-      rank: Math.floor((questions.length - score) * 1.5),
-    });
-  };
 
 
 
@@ -684,52 +677,52 @@ const Fornixqbank2 = () => {
     const [scaleAnim] = useState(new Animated.Value(1));
     const [widthAnim] = useState(new Animated.Value(0.3));
 
-    useEffect(() => {
-      let animation;
-      if (loading) {
-        const pulseAnimation = Animated.loop(
-          Animated.sequence([
-            Animated.timing(scaleAnim, {
-              toValue: 1.1,
-              duration: 600,
-              useNativeDriver: true,
-            }),
-            Animated.timing(scaleAnim, {
-              toValue: 1,
-              duration: 600,
-              useNativeDriver: true,
-            }),
-          ]),
-        );
-        pulseAnimation.start();
+    // useEffect(() => {
+    //   let animation;
+    //   if (loading) {
+    //     const pulseAnimation = Animated.loop(
+    //       Animated.sequence([
+    //         Animated.timing(scaleAnim, {
+    //           toValue: 1.1,
+    //           duration: 600,
+    //           useNativeDriver: true,
+    //         }),
+    //         Animated.timing(scaleAnim, {
+    //           toValue: 1,
+    //           duration: 600,
+    //           useNativeDriver: true,
+    //         }),
+    //       ]),
+    //     );
+    //     pulseAnimation.start();
 
-        const widthAnimation = Animated.loop(
-          Animated.sequence([
-            Animated.timing(widthAnim, {
-              toValue: 0.6,
-              duration: 600,
-              useNativeDriver: false,
-            }),
-            Animated.timing(widthAnim, {
-              toValue: 0.3,
-              duration: 600,
-              useNativeDriver: false,
-            }),
-          ]),
-        );
-        widthAnimation.start();
+    //     const widthAnimation = Animated.loop(
+    //       Animated.sequence([
+    //         Animated.timing(widthAnim, {
+    //           toValue: 0.6,
+    //           duration: 600,
+    //           useNativeDriver: false,
+    //         }),
+    //         Animated.timing(widthAnim, {
+    //           toValue: 0.3,
+    //           duration: 600,
+    //           useNativeDriver: false,
+    //         }),
+    //       ]),
+    //     );
+    //     widthAnimation.start();
 
-        animation = {
-          pulse: pulseAnimation,
-          width: widthAnimation,
-        };
-      }
+    //     animation = {
+    //       pulse: pulseAnimation,
+    //       width: widthAnimation,
+    //     };
+    //   }
 
-      return () => {
-        animation?.pulse?.stop();
-        animation?.width?.stop();
-      };
-    }, [loading]);
+    //   return () => {
+    //     animation?.pulse?.stop();
+    //     animation?.width?.stop();
+    //   };
+    // }, [loading]);
 
     return (
       <View style={styles.loaderContainer}>
@@ -782,6 +775,7 @@ const Fornixqbank2 = () => {
       </View>
     );
   };
+
 
   // Main render logic
   if (loading) {
@@ -854,7 +848,10 @@ const Fornixqbank2 = () => {
                   backgroundColor: '#1A3848',
                   borderRadius: 8
                 }}
-                onPress={() => setShowSummaryModal(false)}
+                onPress={() => {
+                  setShowSummaryModal(false)
+                  setOpenTracker(true);
+                }}
               >
                 <Text style={{ color: '#fff' }}>Review</Text>
               </TouchableOpacity>
@@ -901,6 +898,21 @@ const Fornixqbank2 = () => {
         </View>
       )}
 
+      {openTracker && (
+        <View style={styles.trackerContainer}>
+            {questions?.map((question, index)=>(
+                <TouchableOpacity style={{...styles.questionContain,
+                  backgroundColor: index === currentIndex ? '#F87F16' : (getAnswer(question.id)?.selected_key ? '#4CAF50' : '#E0E0E0')
+                }} onPress={()=> {
+                  setCurrentIndex(index);
+                  setOpenTracker(false)
+                }} key={index}>
+                  <Text style={styles.questionNumber}>{index+1}</Text>
+                  </TouchableOpacity>
+            ))}
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -939,6 +951,11 @@ const Fornixqbank2 = () => {
             </View>
           </View>
         </View>
+        
+        {/* tracker */}
+        <TouchableOpacity onPress={()=>setOpenTracker(!openTracker)} style={styles.trackerButton}>
+          <Text>+</Text>
+        </TouchableOpacity>
         {/* 🔹 Question Container */}
         <View style={styles.questionContainer}>
           {/* 🔹 Question Text */}
@@ -1148,10 +1165,65 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(getResponsiveSize(3)),
     overflow: 'hidden',
   },
+  questionNumber: {
+    color: '#1A3848',
+    fontSize: moderateScale(getResponsiveSize(14)),
+    fontFamily: 'Poppins-SemiBold',
+  },
   progressFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: moderateScale(getResponsiveSize(3)),
+  },
+  trackerContainer: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{ translateX: -150 }, { translateY: -150 }], // adjust based on width
+    width: 300,
+
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "center",
+
+    padding: 16,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+
+    zIndex: 999,
+    elevation: 10, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+
+  questionContain: {
+    width: 44,
+    height: 44,
+    margin: 8,
+
+    borderRadius: 22,
+   
+    justifyContent: "center",
+    alignItems: "center",
+
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  trackerButton:{
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 100,
+    backgroundColor: "orange",
+    padding:2,
+    display:"flex",
+    justifyContent: "center",
+    alignItems:"center"
   },
   questionContainer: {
     marginHorizontal: scale(getResponsiveSize(20)),

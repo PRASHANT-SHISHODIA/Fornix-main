@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon1 from 'react-native-vector-icons/Ionicons';
-import {useNavigation} from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { Alert } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -35,44 +37,103 @@ const Signup = () => {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: "1032712248044-88o09oaf1a3ue5ne5g7hi91o69mcoi40.apps.googleusercontent.com", // 👈 YOUR CLIENT ID
+      offlineAccess: true,
+      // hostedDomain: '', // 👈 if you want to restrict to a specific domain
+      // loginHint: '', // 👈 if you want to pre-fill the email fiel 
+      //  forceconsentPrompt: true, // 👈 to always show the consent promp't   
+      forceCodeForRefreshToken: true,
+    });
+
+    checkAuth();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+
+      const userInfo = await GoogleSignin.signIn();
+
+      console.log('FULL GOOGLE USER INFO 👉', JSON.stringify(userInfo, null, 2));
+
+      const idToken = userInfo.idToken || userInfo.data?.idToken;
+
+      if (!idToken) {
+        console.log("google id token", idToken)
+        Alert.alert('Error', 'Google ID Token not received');
+        return;
+      }
+
+      console.log('GOOGLE ID TOKEN 👉', idToken);
+
+      // 🔥 OPTION 1: Direct login (temporary)
+      await AsyncStorage.setItem('token', idToken);
+      await AsyncStorage.setItem(
+        'google_user',
+        JSON.stringify(userInfo.user)
+      );
+
+      navigation.replace('TabNavigation');
+
+      // 🔥 OPTION 2 (BEST): Backend / Redux call
+      // dispatch(googleLogin(idToken));
+
+    } catch (error) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('User cancelled Google login');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        console.log('Google login already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Play Services not available');
+      } else {
+        console.error('Google Sign-In Error:', error.message);
+        Alert.alert('Error', error.message || 'Google Sign-In failed');
+      }
+    }
+  };
+
+
+
 
   return (
-    <View style={[styles.container,{paddingTop: insets.top}]}>
-      
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+
       {/* Title */}
       <Text style={styles.title}>Let's Get You In</Text>
 
       {/* Social Login Buttons */}
-      <TouchableOpacity style={styles.socialButton}>
-        <Image 
-          source={{uri: 'https://pngimg.com/uploads/google/google_PNG19630.png'}}
+      {/* <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+        <Image
+          source={{ uri: 'https://pngimg.com/uploads/google/google_PNG19630.png' }}
           style={styles.iconImage}
         />
         <Text style={styles.socialButtonText}>Continue With Google</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
-      <TouchableOpacity style={styles.socialButton}>
-          <Icon name="apple" size={25} color="" style={styles.icon} />
+      {/* <TouchableOpacity style={styles.socialButton}>
+        <Icon name="apple" size={25} color="" style={styles.icon} />
         <Text style={styles.socialButtonText}>Continue With Apple</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Separator */}
-      <View style={styles.separatorContainer}>
+      {/* <View style={styles.separatorContainer}>
         <Text style={styles.separatorText}>Or</Text>
-      </View>
+      </View> */}
 
       {/* Sign Up Button */}
-      <TouchableOpacity style={styles.signUpButton} onPress={()=> navigation.navigate("Signupdetail")} >
+      <TouchableOpacity style={styles.signUpButton} onPress={() => navigation.navigate("Signupdetail", { params: { direct: false } })} >
         <Text style={styles.signUpButtonText}>Sign Up</Text>
       </TouchableOpacity>
 
       {/* Already have account */}
-      <TouchableOpacity style={styles.loginLink}  onPress={()=> navigation.navigate("Logindetail")} >
+      <TouchableOpacity style={styles.loginLink} onPress={() => navigation.navigate("Logindetail")} >
         <Text style={styles.loginText}>I already have an account</Text>
-          <Icon1 name="arrow-forward" size={16} color="black" style={styles.icon1} />
+        <Icon1 name="arrow-forward" size={16} color="black" style={styles.icon1} />
       </TouchableOpacity>
-      </View>
-    
+    </View>
+
   );
 };
 
@@ -108,7 +169,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   socialButtonText: {
-     fontFamily: 'Poppins-SemiBold',
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
   separatorContainer: {
@@ -119,7 +180,7 @@ const styles = StyleSheet.create({
   separatorText: {
     color: 'white',
     fontSize: 19,
-    textAlign:"center",
+    textAlign: "center",
     fontFamily: 'Poppins-SemiBold',
   },
   signUpButton: {
@@ -133,19 +194,19 @@ const styles = StyleSheet.create({
   signUpButtonText: {
     color: 'white',
     fontSize: 16,
-      fontFamily: 'Poppins-SemiBold',
+    fontFamily: 'Poppins-SemiBold',
   },
   loginLink: {
     paddingVertical: 7,
-    flexDirection:"row",
-    gap:10
+    flexDirection: "row",
+    gap: 10
   },
   loginText: {
     color: '#FFF',
     fontSize: 16,
   },
-  icon1:{ alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:2 },
-   icon: {
+  icon1: { alignSelf: "center", backgroundColor: "white", borderRadius: 20, padding: 2 },
+  icon: {
     marginRight: 15,
   },
 });

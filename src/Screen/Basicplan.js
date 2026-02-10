@@ -202,7 +202,7 @@ const BasicPlan = () => {
       >
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('PlanCard')}
+          onPress={()=> navigation.navigate("Signupdetail", {params: {direct: true}})}
           style={styles.upgradeButtonInner}
         >
           <Icon name="crown" size={16} color="#fff" />

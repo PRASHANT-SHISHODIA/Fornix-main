@@ -50,8 +50,10 @@ const isMockTest = score ==='mocktest'
 
   const timeTaken = Number(route.params?.timeTaken) || 0;
 
+  console.log('Raw Result Data:', rawResult, route.params);
+
   const totalQuestions = 
-    Number(rawResult.total_questions ?? rawResult.total) || 0;
+    Number(rawResult.total_questions ?? route.params?.questions?.length) || 0;
 
   const correctAnswers =
     Number(rawResult.correct_answers ?? rawResult.correct) || 0;
@@ -178,6 +180,8 @@ const isMockTest = score ==='mocktest'
     );
   };
 
+  console.log('Quiz Data:', quizData);
+
   const renderStatsRow = () => (
     <View style={[
       styles.statsContainer,
@@ -267,7 +271,7 @@ const isMockTest = score ==='mocktest'
           { fontSize: moderateScale(getResponsiveSize(16)) }
         ]}>
           {quizData.avgTimePerQuestion}
-        </Text>
+        </Text>+-
       </View>
     </View>
   );
@@ -280,7 +284,7 @@ const isMockTest = score ==='mocktest'
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.navigate('TabNavigation')}
         >
           <Icon
             name="arrow-left"

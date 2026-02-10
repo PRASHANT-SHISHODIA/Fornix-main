@@ -46,8 +46,7 @@ const MockTestResults = ({ route, navigation }) => {
 
   // const timeTaken = Number(route.params?.timeTaken) || 0;
   const timeTaken = Number(rawResult.time_taken_seconds) || 0;
-
-  const totalQuestions = Number(rawResult.total_questions) || 0;
+  const totalQuestions = Number(rawResult.total_questions ?? route.params?.questions?.length) || 0;
   const correctAnswers = Number(rawResult.correct_answers) || 0;
   const wrongAnswers = Number(rawResult.wrong_answers) || 0;
   const unanswered = Number(rawResult.unanswered) || 0;
@@ -308,7 +307,7 @@ const MockTestResults = ({ route, navigation }) => {
             styles.congratsText,
             { fontSize: moderateScale(getResponsiveSize(24)) }
           ]}>
-            ThankYou For Attempted 
+            ThankYou For 
           </Text>
           <Text style={[
             styles.subCongratsText,

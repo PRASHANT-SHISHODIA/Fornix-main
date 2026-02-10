@@ -123,7 +123,7 @@ const Editprofile = (props) => {
             <View style={styles.profileIcon}>
               <Image source={{
                 uri: data.profile_picture
-              }} style={{height:100,width:100,borderRadius:50,}} />
+              }} style={{ height: 100, width: 100, borderRadius: 50, }} />
               {/* <Icon1 name="person" size={70} color="#F87F16" /> */}
             </View>
             <Text style={styles.profileText}>Update your personal information</Text>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1032712248044",
+    "project_id": "forinx-4309c",
+    "storage_bucket": "forinx-4309c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032712248044:android:182c9bd16a1345c9d2e3c9",
+        "android_client_info": {
+          "package_name": "com.Forinx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBE-GkIDgv4VUY2ruaIM-aCOIwrQnhV6mM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

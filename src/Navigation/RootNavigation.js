@@ -42,6 +42,8 @@ import MockTestResults from '../Screen/MockTestResults';
 import CheckAttemptedTest from '../Screen/CheckAttemptedTest';
 import AiBot from '../Screen/AiBot';
 import AIChatSessionsScreen from '../Screen/AIChatSessionsScreen';
+import ForgotPassword from '../Screen/ForgotPassword';
+// import { configureGoogle } from '../Screen/GoogleConfig';
 
 
 
@@ -246,16 +248,28 @@ function RootNavigation() {
           component={CheckAttemptedTest}
           options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name='AiBot'
           component={AiBot}
           options={{ headerShown: false }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name='AIChatSessionsScreen'
           component={AIChatSessionsScreen}
           options={{ headerShown: false }}
         />
+
+        <Stack.Screen
+          name='ForgotPassword'
+          component={ForgotPassword}
+          options={{ headerShown: false }}
+        />
+        {/* <Stack.Screen
+          name='GoogleConfig'
+          component={configureGoogle}
+          options={{ headerShown: false }}
+        /> */}
+
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -99,7 +99,7 @@ const LoginDetail = () => {
           // ❌ No plan → choose course
           navigation.reset({
             index: 0,
-            routes: [{ name: 'CourseChoose' }],
+            routes: [{ name: 'TabNavigation' }],
           });
         }
 
@@ -179,6 +179,12 @@ const LoginDetail = () => {
             />
           </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={styles.forgotContainer}
+          onPress={() => navigation.navigate('ForgotPassword')}
+        >
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </TouchableOpacity>
 
         {/* Login Button */}
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
@@ -248,6 +254,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Poppins-SemiBold',
   },
+  forgotContainer: {
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+
+  forgotText: {
+    color: '#1A3848',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 13,
+  },
+
 });
 
 export default LoginDetail;

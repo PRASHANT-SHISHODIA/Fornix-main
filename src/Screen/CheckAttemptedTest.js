@@ -135,7 +135,6 @@ const CheckAttemptedTest = ({ route, navigation }) => {
         // ✅ FIX: Audio URLs ko API se lena
         femaleAudio: item.female_explanation_audio_url,
         maleAudio: item.male_explanation_audio_url,
-        
         correctAnswer: correctAnswerIndex,
         userAnswer: userAnswerIndex,
         isCorrect: item.is_correct || false,
@@ -282,16 +281,16 @@ const CheckAttemptedTest = ({ route, navigation }) => {
       <StatItem label="Wrong" value={wrong} color="#F44336" />
       {attempt && (
         <>
-          <StatItem
+          {/* <StatItem
             label="Score"
             value={`${attempt.score || 0}%`}
             color="#2196F3"
-          />
-          <StatItem
+          /> */}
+          {/* <StatItem
             label="Time"
             value={`${Math.floor(attempt.time_taken_seconds / 60)}m`}
             color="#9C27B0"
-          />
+          /> */}
         </>
       )}
     </LinearGradient>
@@ -338,9 +337,6 @@ const CheckAttemptedTest = ({ route, navigation }) => {
       <View
         style={[
           styles.card,
-          {
-            borderLeftColor: item.isCorrect ? '#4CAF50' : '#F44336',
-          },
         ]}
       >
         {/* HEADER */}
@@ -352,11 +348,11 @@ const CheckAttemptedTest = ({ route, navigation }) => {
             <View
               style={[
                 styles.qNumber,
-                {
-                  backgroundColor: item.isCorrect
-                    ? '#4CAF50'
-                    : '#F44336',
-                },
+                // {
+                //   backgroundColor: item.isCorrect
+                //     ? '#4CAF50'
+                //     : '#F44336',
+                // },
               ]}
             >
               <Text style={styles.qNumberText}>{item.index}</Text>

@@ -430,9 +430,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
   },
   subjectIcon: {
-  width: scale(getResponsiveSize(35)),
-  height: scale(getResponsiveSize(35)),
-},
+    width: scale(getResponsiveSize(35)),
+    height: scale(getResponsiveSize(35)),
+  },
 
 
 });

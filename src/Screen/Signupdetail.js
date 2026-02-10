@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, use } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useForm } from 'react-hook-form';
+import { set, useForm } from 'react-hook-form';
 import RazorpayCheckout from 'react-native-razorpay';
 
 
@@ -154,10 +154,9 @@ const countries = [
   },
 ];
 
-const Signupdetail = () => {
+const Signupdetail = ({route}) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-
   // States for form inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -216,6 +215,7 @@ const Signupdetail = () => {
   const [isQualifiedCountryModalVisible, setQualifiedCountryModalVisible] = useState(false);
   const [isCollegeModalVisible, setCollegeModalVisible] = useState(false);
   const [loadingCountries, setLoadingCountries] = useState(false);
+  const [user, setUser] = useState(null);
 
   // Courses
   const [courses, setCourses] = useState([]);
@@ -253,7 +253,31 @@ const Signupdetail = () => {
     }
   })
 
-  const [nextPage, setNextPage] = useState(null)
+  const [nextPage, setNextPage] = useState(false)
+
+  const getUSer = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      if(userId){
+        const res = await axios.post("https://fornix-medical.vercel.app/api/v1/user/get", {id: userId});
+        if(res.data.success){
+          setUser(res.data)
+        }
+    }
+  }
+    catch (e) { console.log("Get user error", e) }  
+  }
+    console.log("user from storage", user)
+
+  useEffect(() => {
+    const direct = route?.params?.params?.direct;
+    if(direct){
+      getUSer()
+      setNextPage(true)
+    }else{
+      setNextPage(false)
+    }
+  },[])
 
   // Gender Options
   const genderOptions = ['Male', 'Female', 'Other'];
@@ -359,7 +383,7 @@ const Signupdetail = () => {
   const renderPlan = ({ item }) => (
     <PlanCard
       plan={item}
-      data={{ name: getValues("name"), mobile: getValues("mobile"), email: getValues("email"), country: getValues("country"), country_id: getValues('country_id'), gender: getValues("gender"), password: getValues('password'), college_name: getValues("college_name"), courses: selectedCourse }}
+      data={{ name: getValues("name") ?? user?.user?.full_name, mobile: getValues("mobile") ?? user?.user?.phone, email: getValues("email") ?? user?.user?.email, country: getValues("country") ?? "India", country_id: getValues('country_id') ?? "3856a7e7-0b14-4e88-a729-bb2bc1913d8d", gender: getValues("gender") ?? user?.user?.gender, password: getValues('password'), college_name: getValues("college_name"), courses: selectedCourse } }
       isTablet={isTablet}
       isLandscape={isLandscape}
       screenWidth={width}
@@ -568,7 +592,7 @@ const Signupdetail = () => {
   const handleNext = async (data) => {
     // Validate all fields
     console.log(data)
-    setNextPage(data)
+    setNextPage(true)
 
   };
 
@@ -631,39 +655,7 @@ const Signupdetail = () => {
 
   if (nextPage) {
     return (
-      // <View style={styles.container}>
-      //   <Text style={[
-      //     styles.heading,
-      //     isTablet && styles.headingTablet,
-      //     isSmallPhone && styles.headingSmall
-      //   ]}>
-      //     Choose Your Plan
-      //   </Text>
 
-      //   <View style={{alignContent:'center', alignItems:'center',}}>
-      //     <TouchableOpacity style={{width:"40%",height:'20%',
-      //       backgroundColor:'#000',
-      //     }}>
-      //       <Text>
-      //         Start free 
-      //       </Text>
-      //     </TouchableOpacity>
-      //   </View>
-
-      //   <FlatList
-      //     data={plans}
-      //     keyExtractor={item => item.id}
-      //     renderItem={renderPlan}
-      //     showsVerticalScrollIndicator={false}
-      //     contentContainerStyle={[
-      //       styles.listContent,
-      //       isLandscape && styles.listContentLandscape,
-      //       isTablet && styles.listContentTablet
-      //     ]}
-      //     numColumns={isLandscape || isTablet ? 2 : 1}
-      //     key={isLandscape || isTablet ? 'two-column' : 'one-column'}
-      //   />
-      // </View>
       <View style={styles.container}>
         <Text
           style={[
@@ -676,7 +668,7 @@ const Signupdetail = () => {
         </Text>
 
         {/* ✅ Start Free Button */}
-        <View style={styles.freeButtonWrapper}>
+        {!route?.params?.params?.direct && <View style={styles.freeButtonWrapper}>
           {/* <TouchableOpacity style={styles.freeButton}>
             <Text style={styles.freeButtonText}>
               Start Free
@@ -692,7 +684,7 @@ const Signupdetail = () => {
             </Text>
           </TouchableOpacity>
 
-        </View>
+        </View>}
 
         <FlatList
           data={plans}
@@ -1326,7 +1318,7 @@ const PlanCard = ({ plan, isTablet, isLandscape, screenWidth, data }) => {
       Alert.alert('Success', 'Enrollment successful 🎉', [
         {
           text: 'OK',
-          onPress: () => navigation.replace('Logindetail'),
+          onPress: () => navigation.replace(data?.password ?'Logindetail' : "TabNavigation"),
         },
       ]);
     } catch (error) {

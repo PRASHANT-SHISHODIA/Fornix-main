@@ -342,11 +342,11 @@ const CheckAttempted = ({ route, navigation }) => {
             value={`${attempt.score || 0}%`}
             color="#2196F3"
           />
-          <StatItem
+          {/* <StatItem
             label="Time"
             value={`${Math.floor(attempt.time_taken_seconds / 60)}m`}
             color="#9C27B0"
-          />
+          /> */}
         </>
       )}
     </LinearGradient>
@@ -398,12 +398,9 @@ const CheckAttempted = ({ route, navigation }) => {
 
     return (
       <View
-        style={[
-          styles.card,
-          {
-            borderLeftColor: item.isCorrect ? '#4CAF50' : '#F44336',
-          },
-        ]}
+        style={
+          styles.card
+        }
       >
         {/* HEADER */}
         <TouchableOpacity
@@ -452,7 +449,7 @@ const CheckAttempted = ({ route, navigation }) => {
           <Icon
             name={isOpen ? 'chevron-up' : 'chevron-down'}
             size={14}
-            color="#555"
+            // color="#555"
           />
         </TouchableOpacity>
 
