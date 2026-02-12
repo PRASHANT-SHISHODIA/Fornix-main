@@ -44,6 +44,7 @@ const Profile = () => {
   const navigation = useNavigation();
   const [avatarSource, setAvatarSource] = useState(null);
   const [profileData, setProfileData] = useState(null);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const profileImageUri = profileData?.profile_picture;
 
@@ -101,6 +102,12 @@ const Profile = () => {
       icon: 'sign-out-alt',
       onPress: () => showLogoutConfirmation()
     },
+    {
+      id: '9',
+      title: 'Delete Account',
+      icon: 'trash',
+      onPress: () => showDeleteConfirmation()
+    },
   ];
 
 
@@ -130,6 +137,7 @@ const Profile = () => {
       )
       console.log("PROFILE API RESPONSE:", response.data);
       setProfileData(response?.data?.user)
+      setSubscriptions(response?.data?.subscriptions || [])
 
       // console.log(profileData)
 
@@ -244,6 +252,110 @@ const Profile = () => {
     );
   };
 
+  const uploadProfileImage = async (imageAsset) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!token || !userId) {
+        Alert.alert("Session Expired", "Please login again");
+        return;
+      }
+
+      setLoading(true);
+
+      const formData = new FormData();
+      formData.append('id', userId);
+      formData.append('profile_picture', {
+        uri: Platform.OS === 'android' ? imageAsset.uri : imageAsset.uri.replace('file://', ''),
+        type: imageAsset.type || 'image/jpeg',
+        name: imageAsset.fileName || 'profile.jpg',
+      });
+
+      console.log("UPLOADING IMAGE...", formData);
+
+      const response = await axios.put(
+        "https://fornix-medical.vercel.app/api/v1/user/update-picture",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      console.log("UPLOAD RESPONSE:", response.data);
+
+      if (response.data?.success) {
+        Alert.alert("Success", "Profile picture updated successfully");
+        fetchProfile(); // Refresh profile data
+      } else {
+        Alert.alert("Error", response.data?.message || "Failed to upload profile picture");
+      }
+    } catch (error) {
+      console.log("UPLOAD ERROR", error);
+      Alert.alert("Error", "Failed to upload image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!token || !userId) {
+        Alert.alert("Session Expired", "Please login again");
+        navigation.replace("Logindetail");
+        return;
+      }
+
+      setLoading(true);
+      const response = await axios.delete(
+        "https://fornix-medical.vercel.app/api/v1/user/delete",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          data: {
+            id: userId,
+          },
+        }
+      );
+
+      console.log("DELETE ACCOUNT RESPONSE:", response.data);
+
+      if (response.data?.success) {
+        Alert.alert("Success", "Account deleted successfully.");
+        await AsyncStorage.clear();
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Logindetail" }],
+        });
+      } else {
+        Alert.alert("Error", response.data?.message || "Failed to delete account");
+      }
+    } catch (error) {
+      console.log("DELETE ACCOUNT ERROR", error.response?.data || error.message);
+      Alert.alert("Error", "Failed to delete account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showDeleteConfirmation = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteAccount }
+      ]
+    );
+  };
+
   // Request camera permission for Android
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
@@ -329,6 +441,8 @@ const Profile = () => {
       } else if (response.assets && response.assets.length > 0) {
         const source = { uri: response.assets[0].uri };
         setAvatarSource(source);
+        // Upload the selected image
+        uploadProfileImage(response.assets[0]);
         console.log('Photo taken successfully:', source.uri);
       } else {
         console.log('Unexpected response:', response);
@@ -367,6 +481,8 @@ const Profile = () => {
       } else if (response.assets && response.assets.length > 0) {
         const source = { uri: response.assets[0].uri };
         setAvatarSource(source);
+        // Upload the selected image
+        uploadProfileImage(response.assets[0]);
         console.log('Image selected successfully:', source.uri);
       } else {
         console.log('Unexpected response:', response);
@@ -399,6 +515,14 @@ const Profile = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Expired Subscription Banner */}
+        {subscriptions.some(sub => new Date(sub.end_date) < new Date()) && (
+          <View style={styles.expiredBanner}>
+            <Icon1 name="warning" size={moderateScale(getResponsiveSize(20))} color="#FFF" />
+            <Text style={styles.expiredBannerText}>Your course has ended, please renew.</Text>
+          </View>
+        )}
+
         {/* Profile Info Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
@@ -423,6 +547,43 @@ const Profile = () => {
             <Icon name="edit" size={25} color="#fff" />
           </TouchableOpacity> */}
         </View>
+
+        {/* Subscription Section */}
+        {subscriptions.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>My Subscriptions</Text>
+            {subscriptions.map((sub, index) => {
+              const isExpired = new Date(sub.end_date) < new Date();
+
+              return (
+                <View key={index} style={styles.subscriptionCard}>
+                  <View style={styles.subHeader}>
+                    <Text style={styles.courseName}>{sub.course?.name}</Text>
+                    {sub.is_active && !isExpired ? (
+                      <View style={styles.activeBadge}><Text style={styles.activeText}>Active</Text></View>
+                    ) : (
+                      <View style={styles.expiredBadge}><Text style={styles.activeText}>Expired</Text></View>
+                    )}
+                  </View>
+                  <Text style={styles.planName}>{sub.plan?.name}</Text>
+                  <Text style={styles.validity}>
+                    {isExpired ? "Expired on: " : "Expires: "}
+                    {new Date(sub.end_date).toLocaleDateString()}
+                  </Text>
+
+                  {isExpired && (
+                    <TouchableOpacity
+                      style={styles.renewButton}
+                      onPress={() => navigation.navigate('CourseSunscription')}
+                    >
+                      <Text style={styles.renewText}>Renew Now</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Menu Items */}
         <View style={styles.menuContainer}>
@@ -591,6 +752,92 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     color: 'rgba(255, 255, 255, 0.7)',
     includeFontPadding: false,
+  },
+  sectionContainer: {
+    paddingHorizontal: scale(getResponsiveSize(20)),
+    marginBottom: verticalScale(getResponsiveSize(20)),
+  },
+  sectionTitle: {
+    fontSize: moderateScale(getResponsiveSize(18)),
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFF',
+    marginBottom: verticalScale(getResponsiveSize(10)),
+  },
+  subscriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: moderateScale(getResponsiveSize(15)),
+    padding: scale(getResponsiveSize(15)),
+    marginBottom: verticalScale(getResponsiveSize(10)),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  subHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(getResponsiveSize(5)),
+  },
+  courseName: {
+    fontSize: moderateScale(getResponsiveSize(16)),
+    fontFamily: 'Poppins-Bold',
+    color: '#FFF',
+  },
+  activeBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: scale(getResponsiveSize(8)),
+    paddingVertical: verticalScale(getResponsiveSize(2)),
+    borderRadius: moderateScale(getResponsiveSize(10)),
+  },
+  expiredBadge: {
+    backgroundColor: '#E53935',
+    paddingHorizontal: scale(getResponsiveSize(8)),
+    paddingVertical: verticalScale(getResponsiveSize(2)),
+    borderRadius: moderateScale(getResponsiveSize(10)),
+  },
+  activeText: {
+    fontSize: moderateScale(getResponsiveSize(10)),
+    color: '#FFF',
+    fontFamily: 'Poppins-Bold',
+  },
+  planName: {
+    fontSize: moderateScale(getResponsiveSize(14)),
+    fontFamily: 'Poppins-Medium',
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  validity: {
+    fontSize: moderateScale(getResponsiveSize(12)),
+    fontFamily: 'Poppins-Regular',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: verticalScale(getResponsiveSize(5)),
+  },
+  renewButton: {
+    marginTop: verticalScale(getResponsiveSize(10)),
+    backgroundColor: '#F87F16',
+    paddingVertical: verticalScale(getResponsiveSize(8)),
+    borderRadius: moderateScale(getResponsiveSize(8)),
+    alignItems: 'center',
+  },
+  renewText: {
+    color: '#FFF',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: moderateScale(getResponsiveSize(14)),
+  },
+  expiredBanner: {
+    backgroundColor: '#E53935',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(getResponsiveSize(10)),
+    paddingHorizontal: scale(getResponsiveSize(20)),
+    marginHorizontal: scale(getResponsiveSize(20)),
+    marginTop: verticalScale(getResponsiveSize(20)),
+    borderRadius: moderateScale(getResponsiveSize(10)),
+  },
+  expiredBannerText: {
+    color: '#FFF',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: moderateScale(getResponsiveSize(14)),
+    marginLeft: scale(getResponsiveSize(10)),
   },
 });
 

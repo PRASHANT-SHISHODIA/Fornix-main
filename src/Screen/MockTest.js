@@ -61,9 +61,9 @@ const MockTest = ({ navigation }) => {
     try {
       const storedUserId = await AsyncStorage.getItem('user_id');
       const courseData = await AsyncStorage.getItem('selectedCourse');
-      console.log("stor",storedUserId)
+      console.log("stor", storedUserId)
       console.log('courseData', courseData)
-      
+
 
       if (!storedUserId) {
         Alert.alert('Error', 'User not found');
@@ -78,8 +78,8 @@ const MockTest = ({ navigation }) => {
       const course = JSON.parse(courseData);
       setUserId(storedUserId);
       setCourseId(course.courseId);
-      console.log('couser',course)
-      console.log("setCouserId",courseId)
+      console.log('couser', course)
+      console.log("setCouserId", courseId)
 
     } catch (err) {
       console.log('Mock tests API error:', error);
@@ -133,39 +133,39 @@ const MockTest = ({ navigation }) => {
   //   }
   // };
   const fetchMockTests = async () => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const response = await axios.post(
-      'https://fornix-medical.vercel.app/api/v1/mobile/mock-tests',
-      {
-        course_id: courseId,
-        user_id: userId,
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 15000,
+      const response = await axios.post(
+        'https://fornix-medical.vercel.app/api/v1/mobile/mock-tests',
+        {
+          course_id: courseId,
+          user_id: userId,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 15000,
+        }
+      );
+
+      if (response?.data?.success) {
+        setMockTests(response.data.tests || []);
+      } else {
+        Alert.alert('Error', 'Failed to load mock tests');
       }
-    );
+    } catch (error) {
+      // SAFE LOGGING (Hermes friendly)
+      console.log('Mock tests error message:', error?.message);
+      console.log('Mock tests error data:', error?.response?.data);
 
-    if (response?.data?.success) {
-      setMockTests(response.data.tests || []);
-    } else {
-      Alert.alert('Error', 'Failed to load mock tests');
+      Alert.alert(
+        'Error',
+        error?.response?.data?.message || 'Network error'
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    // SAFE LOGGING (Hermes friendly)
-    console.log('Mock tests error message:', error?.message);
-    console.log('Mock tests error data:', error?.response?.data);
-
-    Alert.alert(
-      'Error',
-      error?.response?.data?.message || 'Network error'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
@@ -203,7 +203,7 @@ const MockTest = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container2, { paddingTop: insets.top }]}>
         <StatusBar backgroundColor="#F5F5F5" barStyle="dark-content" />
 
         {/* Header - Same as PYT screen */}
@@ -403,6 +403,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  container2: {
+    flex: 1,
+    backgroundColor: '#F87F16',
   },
   scrollView: {
     flex: 1,

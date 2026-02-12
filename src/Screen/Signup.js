@@ -100,8 +100,17 @@ const Signup = () => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
 
+      <View style={styles.imageContainer}>
+        <Image
+          source={require("../assets/Images/Fornix2.png")}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      </View>
+
       {/* Title */}
       <Text style={styles.title}>Let's Get You In</Text>
+
 
       {/* Social Login Buttons */}
       {/* <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
@@ -149,9 +158,19 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontFamily: 'Poppins-SemiBold',
     color: '#FFF',
-    marginBottom: 50,
+    marginBottom: 20,
     textAlign: 'center',
 
+  },
+  imageContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    width: '100%',
+  },
+  image: {
+    width: width * 0.9,
+    height: 300,
   },
   socialButton: {
     flexDirection: 'row',

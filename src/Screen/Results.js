@@ -33,11 +33,9 @@ const getResponsiveSize = (size) => {
 
 const Results = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
-  const [showGift, setShowGift] = useState(true);
-  const [giftAnimation] = useState(new Animated.Value(0));
-  const [scaleAnimation] = useState(new Animated.Value(0.3));
 
-const isMockTest = score ==='mocktest'
+
+  const isMockTest = score === 'mocktest'
 
 
   useEffect(() => {
@@ -52,7 +50,7 @@ const isMockTest = score ==='mocktest'
 
   console.log('Raw Result Data:', rawResult, route.params);
 
-  const totalQuestions = 
+  const totalQuestions =
     Number(rawResult.total_questions ?? route.params?.questions?.length) || 0;
 
   const correctAnswers =
@@ -83,47 +81,7 @@ const isMockTest = score ==='mocktest'
   };
 
 
-  useEffect(() => {
-    // Show gift popup after 1 second
-    const timer = setTimeout(() => {
-      setShowGift(true);
-      startGiftAnimation();
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }, []);
-
-  const startGiftAnimation = () => {
-    Animated.parallel([
-      Animated.spring(giftAnimation, {
-        toValue: 1,
-        tension: 10,
-        friction: 3,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnimation, {
-        toValue: 1,
-        tension: 10,
-        friction: 3,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeGift = () => {
-    Animated.parallel([
-      Animated.timing(giftAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnimation, {
-        toValue: 0.3,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setShowGift(false));
-  };
 
   const renderScoreCircle = () => {
     const circleSize = width * 0.5;
@@ -278,7 +236,7 @@ const isMockTest = score ==='mocktest'
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar  barStyle='dark-content' />
+      <StatusBar barStyle='dark-content' />
 
       {/* Header with Back Button */}
       <View style={styles.header}>
@@ -315,7 +273,7 @@ const isMockTest = score ==='mocktest'
             styles.congratsText,
             { fontSize: moderateScale(getResponsiveSize(24)) }
           ]}>
-            Thank You 
+            Thank You
           </Text>
           <Text style={[
             styles.subCongratsText,
@@ -345,11 +303,11 @@ const isMockTest = score ==='mocktest'
             }
           ]}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('CheckAttempted',{
+          onPress={() => navigation.navigate('CheckAttempted', {
             attemptedId: route.params?.attemptedId,
             userId: route.params?.userId
 
-      
+
           })}
         >
           <Text style={[
@@ -367,77 +325,7 @@ const isMockTest = score ==='mocktest'
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Gift Popup Modal */}
-      <Modal
-        visible={showGift}
-        transparent
-        animationType="fade"
-        onRequestClose={closeGift}
-      >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[
-            styles.giftContainer,
-            {
-              opacity: giftAnimation,
-              transform: [
-                { scale: scaleAnimation },
-                {
-                  translateY: giftAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [50, 0]
-                  })
-                }
-              ]
-            }
-          ]}>
-            <View style={styles.giftContent}>
-              {/* Gift Box Image */}
-              <View style={styles.giftBoxContainer}>
-                {/* <Image
-                  source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2583/2583434.png' }}
-                  style={styles.giftImage}
-                  resizeMode="contain"
-                /> */}
-                {/* Confetti Animation */}
-                <View style={styles.confettiContainer}>
-                  {[...Array(8)].map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.confetti,
-                        {
-                          backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#95E1D3', '#F7CAC9'][i % 5],
-                          left: `${(i * 12) % 100}%`,
-                          top: i % 2 === 0 ? 10 : 60,
-                          transform: [{ rotate: `${i * 45}deg` }],
-                        }
-                      ]}
-                    />
-                  ))}
-                </View>
-              </View>
 
-              <Text style={[
-                styles.giftTitle,
-                { fontSize: moderateScale(getResponsiveSize(22)) }
-              ]}>
-                🎉 Congratulations! 🎉
-              </Text>
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={closeGift}
-              >
-                <Text style={[
-                  styles.skipButtonText,
-                  { fontSize: moderateScale(getResponsiveSize(14)) }
-                ]}>
-                  Skip for now
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
     </View>
   );
 };

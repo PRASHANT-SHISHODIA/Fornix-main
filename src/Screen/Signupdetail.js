@@ -19,7 +19,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { set, useForm } from 'react-hook-form';
+import { Controller, set, useForm } from 'react-hook-form';
 import RazorpayCheckout from 'react-native-razorpay';
 
 
@@ -154,7 +154,7 @@ const countries = [
   },
 ];
 
-const Signupdetail = ({route}) => {
+const Signupdetail = ({ route }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   // States for form inputs
@@ -230,7 +230,7 @@ const Signupdetail = ({route}) => {
   const phoneRegex = /^[0-9]{7,15}$/;
   const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
   const qualificationRegex = /^[A-Za-z0-9\s.,-]{2,100}$/;
-  const { handleSubmit, register, getValues, clearErrors, setError, setValue, formState: { errors } } = useForm({
+  const { handleSubmit, register, control, getValues, clearErrors, setError, setValue, formState: { errors } } = useForm({
     defaultValues: {
 
       "name": null,
@@ -258,26 +258,26 @@ const Signupdetail = ({route}) => {
   const getUSer = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      if(userId){
-        const res = await axios.post("https://fornix-medical.vercel.app/api/v1/user/get", {id: userId});
-        if(res.data.success){
+      if (userId) {
+        const res = await axios.post("https://fornix-medical.vercel.app/api/v1/user/get", { id: userId });
+        if (res.data.success) {
           setUser(res.data)
         }
+      }
     }
+    catch (e) { console.log("Get user error", e) }
   }
-    catch (e) { console.log("Get user error", e) }  
-  }
-    console.log("user from storage", user)
+  console.log("user from storage", user)
 
   useEffect(() => {
     const direct = route?.params?.params?.direct;
-    if(direct){
+    if (direct) {
       getUSer()
       setNextPage(true)
-    }else{
+    } else {
       setNextPage(false)
     }
-  },[])
+  }, [])
 
   // Gender Options
   const genderOptions = ['Male', 'Female', 'Other'];
@@ -295,30 +295,10 @@ const Signupdetail = ({route}) => {
   const isTablet = width >= 768;
   const isSmallPhone = width < 375;
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
+  // Removed hardcoded fetchPlans for AMC
+  // Plans will now be set when a course is selected
 
-  const fetchPlans = async () => {
-    try {
-      const res = await axios.get(API_URL);
-      const amcCourse = res.data.data.find(
-        item => item.name.trim() === 'AMC'
-      );
-      if (amcCourse && amcCourse.plans) {
-        const sortedPlans = amcCourse.plans.sort(
-          (a, b) => a.priority_order - b.priority_order
-        );
-        setPlans(sortedPlans);
-      }
-    } catch (error) {
-      console.log('API Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-    const handleStartFree = async () => {
+  const handleStartFree = async () => {
     try {
       // 🔴 validation
       if (!selectedCourse) {
@@ -383,7 +363,7 @@ const Signupdetail = ({route}) => {
   const renderPlan = ({ item }) => (
     <PlanCard
       plan={item}
-      data={{ name: getValues("name") ?? user?.user?.full_name, mobile: getValues("mobile") ?? user?.user?.phone, email: getValues("email") ?? user?.user?.email, country: getValues("country") ?? "India", country_id: getValues('country_id') ?? "3856a7e7-0b14-4e88-a729-bb2bc1913d8d", gender: getValues("gender") ?? user?.user?.gender, password: getValues('password'), college_name: getValues("college_name"), courses: selectedCourse } }
+      data={{ name: getValues("name") ?? user?.user?.full_name, mobile: getValues("mobile") ?? user?.user?.phone, email: getValues("email") ?? user?.user?.email, country: getValues("country") ?? "India", country_id: getValues('country_id') ?? "3856a7e7-0b14-4e88-a729-bb2bc1913d8d", gender: getValues("gender") ?? user?.user?.gender, password: getValues('password'), college_name: getValues("college_name"), courses: selectedCourse }}
       isTablet={isTablet}
       isLandscape={isLandscape}
       screenWidth={width}
@@ -457,6 +437,17 @@ const Signupdetail = ({route}) => {
   const handleCourseSelect = async (course) => {
     setValue("course_id", course.id)
     setSelectedCourse(course)
+
+    // Set plans from the selected course
+    if (course.plans) {
+      const sortedPlans = course.plans.sort(
+        (a, b) => a.priority_order - b.priority_order
+      );
+      setPlans(sortedPlans);
+    } else {
+      setPlans([]);
+    }
+
     setCourseModalVisible(false);
     setErrorFields(prev => ({ ...prev, course: false }));
     setErrorMessages(prev => ({ ...prev, course: '' }));
@@ -590,10 +581,12 @@ const Signupdetail = ({route}) => {
 
   // Handle Submit
   const handleNext = async (data) => {
-    // Validate all fields
-    console.log(data)
-    setNextPage(true)
+    console.log("errorororor", errors)
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
 
+    setNextPage(true);
   };
 
   // Render country item for phone code dropdown
@@ -716,132 +709,160 @@ const Signupdetail = ({route}) => {
 
           {/* Name Input */}
           <View>
-            <View
-              style={[
-                styles.inputContainer,
-                errorFields.name && styles.inputError,
-              ]}>
-              <Icon
-                name="person-outline"
-                size={20}
-                color="#000"
-                style={styles.leftIcon}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Full Name *"
-                placeholderTextColor="#999"
-                onChangeText={(text) => {
-                  setValue('name', text);
+            <Controller
+              control={control}
+              name="name"
+              rules={{
+                required: "Full name is required",
+              }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      error && styles.inputError, // 👈 automatic error border
+                    ]}
+                  >
+                    <Icon
+                      name="person-outline"
+                      size={20}
+                      color="#000"
+                      style={styles.leftIcon}
+                    />
 
-                  if (!text || text.trim() === '') {
-                    setError('name', {
-                      type: 'required',
-                      message: 'Full name is required',
-                    });
-                  } else {
-                    clearErrors('name');
-                  }
-                }}
-              />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Full Name *"
+                      placeholderTextColor="#999"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
 
-            </View>
-            {errors.name ? <Text style={styles.errorText}>{errors.name.message}</Text> : null}
+                  {error && (
+                    <Text style={styles.errorText}>
+                      {error.message}
+                    </Text>
+                  )}
+                </>
+              )}
+            />
           </View>
 
           {/* Email Input */}
           <View>
-            <View
-              style={[
-                styles.inputContainer,
-                errorFields.email && styles.inputError,
-              ]}>
-              <Icon name="mail" size={20} color="#000" style={styles.leftIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Email Address *"
-                placeholderTextColor="#999"
+            <Controller
+              control={control}
+              name="email"
+              rules={{
+                required: "Email is required",
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Enter a valid email address",
+                },
+              }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      error && styles.inputError, // 👈 automatic red border
+                    ]}
+                  >
+                    <Icon
+                      name="mail"
+                      size={20}
+                      color="#000"
+                      style={styles.leftIcon}
+                    />
 
-                onChangeText={(text) => {
-                  setValue('email', text);
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Email Address *"
+                      placeholderTextColor="#999"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
 
-                  if (!text || text.trim() === '') {
-                    setError('email', {
-                      type: 'required',
-                      message: 'Email is required',
-                    });
-                  } else if (
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
-                  ) {
-                    setError('email', {
-                      type: 'pattern',
-                      message: 'Enter a valid email address',
-                    });
-                  } else {
-                    clearErrors('email');
-                  }
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            {errors.email ? <Text style={styles.errorText}>{errors.email.message}</Text> : null}
+                  {error && (
+                    <Text style={styles.errorText}>
+                      {error.message}
+                    </Text>
+                  )}
+                </>
+              )}
+            />
           </View>
 
           {/* Password Input */}
           <View>
-            <View
-              style={[
-                styles.inputContainer,
-                errorFields.password && styles.inputError,
-              ]}>
-              <Icon name="lock-closed-outline" size={20} color="#000" style={styles.leftIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Create Password *"
-                placeholderTextColor="#999"
-                secureTextEntry={!showPassword}
-
-                onChangeText={(text) => {
-                  setValue('password', text);
-
-                  if (!text || text.trim() === '') {
-                    setError('password', {
-                      type: 'required',
-                      message: 'Password is required',
-                    });
-                  } else if (text.length < 6) {
-                    setError('password', {
-                      type: 'minLength',
-                      message: 'Password must be at least 6 characters',
-                    });
-                  } else if (!/(?=.*[A-Z])/.test(text)) {
-                    setError('password', {
-                      type: 'pattern',
-                      message: 'Password must contain at least 1 uppercase letter',
-                    });
-                  } else if (!/(?=.*\d)/.test(text)) {
-                    setError('password', {
-                      type: 'pattern',
-                      message: 'Password must contain at least 1 number',
-                    });
-                  } else {
-                    clearErrors('password');
+            <Controller
+              control={control}
+              name="password"
+              rules={{
+                required: "Password is required",
+                minLength: {
+                  value: 6,
+                  message: "Password must be at least 6 characters",
+                },
+                validate: (value) => {
+                  if (!/(?=.*[A-Z])/.test(value)) {
+                    return "Password must contain at least 1 uppercase letter";
                   }
-                }}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={togglePasswordVisibility}
-                style={styles.rightIcon}>
-                <Icon
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color="#000"
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.password ? <Text style={styles.errorText}>{errors.message}</Text> : null}
+                  if (!/(?=.*\d)/.test(value)) {
+                    return "Password must contain at least 1 number";
+                  }
+                  return true;
+                },
+              }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      error && styles.inputError, // 👈 automatic error border
+                    ]}
+                  >
+                    <Icon
+                      name="lock-closed-outline"
+                      size={20}
+                      color="#000"
+                      style={styles.leftIcon}
+                    />
+
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Create Password *"
+                      placeholderTextColor="#999"
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+
+                    <TouchableOpacity
+                      onPress={togglePasswordVisibility}
+                      style={styles.rightIcon}
+                    >
+                      <Icon
+                        name={showPassword ? "eye-outline" : "eye-off-outline"}
+                        size={20}
+                        color="#000"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {error && (
+                    <Text style={styles.errorText}>
+                      {error.message}
+                    </Text>
+                  )}
+                </>
+              )}
+            />
           </View>
 
           {/* Confirm Password Input */}
@@ -856,6 +877,7 @@ const Signupdetail = ({route}) => {
                 style={styles.textInput}
                 placeholder="Confirm Password *"
                 placeholderTextColor="#999"
+                requiredFields={true}
                 secureTextEntry={!showConfirmPassword}
                 value={confirmPassword}
                 onChangeText={validateConfirmPassword}
@@ -987,58 +1009,68 @@ const Signupdetail = ({route}) => {
 
           {/* Phone Number Input */}
           <View>
-            <View
-              style={[
-                styles.inputContainer,
-                errorFields.phone && styles.inputError,
-              ]}>
-              <TouchableOpacity
-                style={styles.countrySelector}
-                onPress={toggleCountryCodeDropdown}>
-                {selectedCountry && selectedCountry.flag ? (
-                  <>
-                    <Image
-                      source={{ uri: selectedCountry.flag }}
-                      style={styles.flagIcon}
-                      resizeMode="cover"
+            <Controller
+              control={control}
+              name="mobile"
+              rules={{
+                required: "Phone number is required",
+                pattern: {
+                  value: /^[0-9]{10}$/,
+                  message: "Phone number must be exactly 10 digits",
+                },
+              }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      error && styles.inputError, // 👈 automatic red border
+                    ]}
+                  >
+                    {/* Country Selector */}
+                    <TouchableOpacity
+                      style={styles.countrySelector}
+                      onPress={toggleCountryCodeDropdown}
+                    >
+                      {selectedCountry && selectedCountry.flag ? (
+                        <>
+                          <Image
+                            source={{ uri: selectedCountry.flag }}
+                            style={styles.flagIcon}
+                            resizeMode="cover"
+                          />
+                          <Text style={styles.dialCodeText}>
+                            {selectedCountry.dial_code}
+                          </Text>
+                          <Icon name="chevron-down" size={16} color="#000" />
+                        </>
+                      ) : (
+                        <Text style={styles.dialCodeText}>Select</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Phone Input */}
+                    <TextInput
+                      style={[styles.textInput, styles.phoneInput]}
+                      placeholder="Phone Number *"
+                      placeholderTextColor="#999"
+                      keyboardType="phone-pad"
+                      value={value}
+                      onChangeText={(text) => {
+                        const onlyDigits = text.replace(/[^0-9]/g, '');
+                        onChange(onlyDigits);
+                      }}
                     />
-                    <Text style={styles.dialCodeText}>{selectedCountry.dial_code}</Text>
-                    <Icon name="chevron-down" size={16} color="#000" />
-                  </>
-                ) : (
-                  <Text style={styles.dialCodeText}>Select</Text>
-                )}
-              </TouchableOpacity>
+                  </View>
 
-              <TextInput
-                style={[styles.textInput, styles.phoneInput]}
-                placeholder="Phone Number *"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-
-                onChangeText={(text) => {
-                  const onlyDigits = text.replace(/[^0-9]/g, '');
-
-                  setValue('mobile', onlyDigits);
-
-                  if (!onlyDigits) {
-                    setError('mobile', {
-                      type: 'required',
-                      message: 'Phone number is required',
-                    });
-                  } else if (onlyDigits.length < 10) {
-                    setError('mobile', {
-                      type: 'length',
-                      message: 'Phone number must be 10 digits',
-                    });
-                  }
-                  else {
-                    clearErrors('mobile');
-                  }
-                }}
-              />
-            </View>
-            {errors.mobile ? <Text style={styles.errorText}>{errors.mobile.message}</Text> : null}
+                  {error && (
+                    <Text style={styles.errorText}>
+                      {error.message}
+                    </Text>
+                  )}
+                </>
+              )}
+            />
           </View>
 
           {/* Country Code Dropdown Modal */}
@@ -1318,7 +1350,7 @@ const PlanCard = ({ plan, isTablet, isLandscape, screenWidth, data }) => {
       Alert.alert('Success', 'Enrollment successful 🎉', [
         {
           text: 'OK',
-          onPress: () => navigation.replace(data?.password ?'Logindetail' : "TabNavigation"),
+          onPress: () => navigation.replace(data?.password ? 'Logindetail' : "TabNavigation"),
         },
       ]);
     } catch (error) {
@@ -1570,7 +1602,8 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: 'red',
-    fontSize: 12,
+    fontSize: 16,
+    fontWeight: 'bold',
     fontFamily: 'Poppins-Regular',
     marginBottom: 8,
     marginLeft: 5,
